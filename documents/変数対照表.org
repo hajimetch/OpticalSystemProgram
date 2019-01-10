@@ -1,7 +1,7 @@
 | BASIC  | Python                       | 備考                                                         |
 |--------+------------------------------+--------------------------------------------------------------|
 | KX     | self.adj_power_inr_no        | 中間（後）レンズを移動する場合に調整するパワー間隔の番号     |
-| KV     | self.adj_surface_inr_no      | 中間（後）レンズを移動する場合に調整する屈折面間隔の番号     |
+| KV     | self.adj_surf_inr_no         | 中間（後）レンズを移動する場合に調整する屈折面間隔の番号     |
 | AP     | self.ap_radius               | アパチャ半径/焦点距離尺度                                    |
 | AC(,)  | self.aspheric_coefficient[,] | 非球面係数                                                   |
 | LC()   | self.axis_ratio[]            | 楕円面のY軸方向径/X軸方向径                                  |
@@ -38,11 +38,11 @@
 | D1D()  | self.split_param_1[]         | パワーの分割用データ１                                       |
 | D2D()  | self.split_param_2[]         | パワーの分割用データ２                                       |
 | RD()   | self.split_pattern[]         | パワーの分割方法                                             |
-| LJ()   | self.surface_eff_radius[]    | 屈折面の有効半径                                             |
-| IDL()  | self.surface_index[]         | レンズ番号                                                   |
-| LD()   | self.surface_inr[]           | 屈折面の間隔                                                 |
-| LD1    | self.surface_inr_0           | 屈折面の間隔を計算するための一時変数（LD(1)に相当）          |
-| LT()   | self.surface_inr_of_power[]  | １つのパワーが複数の屈折面からなる場合のパワー内の屈折面間隔 |
-| LR()   | self.surface_roc[]           | 屈折面の曲率半径                                             |
-| KSD()  | self.surfaces_of_power[]     | 各パワーを構成する屈折面の数                                 |
+| LJ()   | self.surf_eff_radius[]       | 屈折面の有効半径                                             |
+| IDL()  | self.surf_index[]            | レンズ番号                                                   |
+| LD()   | self.surf_inr[]              | 屈折面の間隔                                                 |
+| LD1    | self.surf_inr_0              | 屈折面の間隔を計算するための一時変数（LD(1)に相当）          |
+| LT()   | self.surf_inr_of_power[]     | １つのパワーが複数の屈折面からなる場合のパワー内の屈折面間隔 |
+| LR()   | self.surf_roc[]              | 屈折面の曲率半径                                             |
+| KSD()  | self.surfs_of_power[]        | 各パワーを構成する屈折面の数                                 |
 | ITR    | self.tracing_dir             | 光線追跡方向                                                 |
