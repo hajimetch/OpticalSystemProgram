@@ -126,9 +126,9 @@ class OpticalSystem():
         if self.input_dtype == InputDataType.SURFACE:
             self.process_surf(config)
         elif self.input_dtype == InputDataType.POWER:
-            self.process_power(config)
+            self.process_pow(config)
         elif self.input_dtype == InputDataType.POWER_LIGHT:
-            self.process_power_light(config)
+            self.process_pow_light(config)
         elif self.input_dtype == InputDataType.GROUP:
             self.process_group(config)
 
@@ -144,9 +144,9 @@ class OpticalSystem():
 
         if (self.input_dtype == InputDataType.SURFACE and
                 self.interval_adj == IntervalAdjustment.NONE):
-            self.convert_surf_to_power()
+            self.convert_surf_to_pow()
         else:
-            self.convert_power_to_surf()
+            self.convert_pow_to_surf()
 
     def read_data(self, config):
         """
@@ -183,15 +183,14 @@ class OpticalSystem():
                 fallback='screen to aperture'))
 
         self.system_name = config.get('System', 'system name', fallback='')
-        self.no_powers = config.getint(
-            'System', 'number of powers', fallback=0)
+        self.no_pows = config.getint('System', 'number of powers', fallback=0)
         self.no_surfs = config.getint(
             'System', 'number of surfaces', fallback=0)
         self.no_lenses = config.getint(
             'System', 'number of lenses', fallback=0)
         self.no_groups = config.getint(
-            'System', 'number of groups', fallback=self.no_powers)
-        self.adj_power_inr_no = config.getint(
+            'System', 'number of groups', fallback=self.no_pows)
+        self.adj_pow_inr_no = config.getint(
             'System', 'adjusting power interval number', fallback=0)
         self.adj_surf_inr_no = config.getint(
             'System', 'adjusting surface interval number', fallback=0)
@@ -216,7 +215,7 @@ class OpticalSystem():
         self.mirror_to_valve = config.getfloat(
             'System', 'mirror to valve', fallback=0) / self.scale
 
-        self.tel_no_powers = config.getint(
+        self.tel_no_pows = config.getint(
             'Telephoto', 'number of powers', fallback=0)
         self.tel_no_surfs = config.getint(
             'Telephoto', 'number of surfaces', fallback=0)
@@ -260,15 +259,14 @@ class OpticalSystem():
         self.ls_limit_no = config.getint(
             'Light Source', 'limit surface number', fallback=0)
 
-        self.surfs_of_power = get_intlist(config, 'System',
-                                          'surfaces of powers')
+        self.surfs_of_pow = get_intlist(config, 'System', 'surfaces of powers')
         self.lens_radius = get_floatlist(config, 'System', 'lens radius')
         self.projection_dist = get_floatlist(config, 'System',
                                              'projection distances')
-        self.surf_inr_of_power = get_floatlist(config, 'System',
-                                               'surface intervals of powers')
-        self.division_ratio = get_floatlist(config, 'System',
-                                            'division ratios of powers')
+        self.surf_inr_of_pow = get_floatlist(config, 'System',
+                                             'surface intervals of powers')
+        self.div_ratio = get_floatlist(config, 'System',
+                                       'division ratios of powers')
         self.split_param_1 = get_floatlist(config, 'System',
                                            'split parameters first')
         self.split_param_2 = get_floatlist(config, 'System',
@@ -284,7 +282,7 @@ class OpticalSystem():
                 '[System: telephoto] is "false"' +
                 ' though [System: interval adjustment] is' +
                 ' "telephoto system power set to 0".')
-        if (self.surfs_of_power is not None and
+        if (self.surfs_of_pow is not None and
                 self.input_dtype == InputDataType.SURFACE and
                 self.interval_adj == IntervalAdjustment.NONE):
             raise DataConsistenceError(
@@ -396,7 +394,8 @@ class OpticalSystem():
             if glass_name == 'REF':
                 dr = -dr
             if glass_name not in GLASS_DATA:
-                raise NoGlassDataError(glass_name)
+                raise NoGlassDataError(glass_name +
+                                       ' is not found in GLASS_DATA')
             self.glass.append(GLASS_DATA[glass_name])
             self.direction.append(Direction(dr))
             self.dispersion.append(GLASS_DATA[glass_name]['dispersion'])
@@ -416,46 +415,44 @@ class OpticalSystem():
         self.surf_inr = surf_data[::2]
         self.surf_roc = surf_data[1::2]
 
-    def process_power(self, config):
+    def process_pow(self, config):
         """
         configで指定されたデータファイルのpower dataの項目から
-        power_inrリストとpower_valリストを読み込む
+        pow_inrリストとpow_valリストを読み込む
         対応するBASICコード：*IN6
         """
-        power_data = get_floatlist(config, 'System', 'power data')
-        self.power_inr = power_data[::2]
-        self.power_val = power_data[1::2]
-        self.power_inr_0 = self.power_inr[0]
+        pow_data = get_floatlist(config, 'System', 'power data')
+        self.pow_inr = pow_data[::2]
+        self.pow_val = pow_data[1::2]
+        self.pow_inr_0 = self.pow_inr[0]
 
-    def process_power_light(self, config):
+    def process_pow_light(self, config):
         """
         configで指定されたデータファイルのpower and light dataの項目から
-        light_hgt_at_powerリストとpower_inrリストを読み込み、
-        power_valリストの値を計算する
+        light_hgt_at_powリストとpow_inrリストを読み込み、
+        pow_valリストの値を計算する
         対応するBASICコード：*IN6, *EF2
         """
-        power_light_data = get_floatlist(config, 'System',
-                                         'power and light data')
-        self.light_hgt_at_power = power_light_data[::2]
-        self.power_inr = power_light_data[1::2]
+        pow_light_data = get_floatlist(config, 'System',
+                                       'power and light data')
+        self.light_hgt_at_pow = pow_light_data[::2]
+        self.pow_inr = pow_light_data[1::2]
         surf_no = 0
-        self.power_val = []
-        for power_no in range(0, self.no_powers):
-            if (self.diff_ri[surf_no] == 0 and
-                    self.surfs_of_power[power_no] == 1 or
-                    self.power_inr[power_no] == 0):
-                self.power_val.append(0)
+        self.pow_val = []
+        for pow_no in range(0, self.no_pows):
+            if (self.diff_ri[surf_no] == 0 and self.surfs_of_pow[pow_no] == 1
+                    or self.pow_inr[pow_no] == 0):
+                self.pow_val.append(0)
             else:
-                self.power_val.append(
-                    ((self.light_hgt_at_power[power_no + 1] - self.
-                      light_hgt_at_power[power_no + 2]
-                      ) * rev(self.power_inr[power_no + 1]) -
-                     (self.light_hgt_at_power[power_no] - self.
-                      light_hgt_at_power[power_no +
-                                         1]) * rev(self.power_inr[power_no])) /
-                    self.light_hgt_at_power[power_no + 1])
-                surf_no += self.surfs_of_power[power_no]
-        self.power_inr_0 = self.group_inr[0]
+                self.pow_val.append((
+                    (self.light_hgt_at_pow[pow_no + 1] - self.
+                     light_hgt_at_pow[pow_no +
+                                      2]) * rev(self.pow_inr[pow_no + 1]) -
+                    (self.light_hgt_at_pow[pow_no] - self.
+                     light_hgt_at_pow[pow_no + 1]) * rev(self.pow_inr[pow_no]))
+                                    / self.light_hgt_at_pow[pow_no + 1])
+                surf_no += self.surfs_of_pow[pow_no]
+        self.pow_inr_0 = self.group_inr[0]
 
     def process_group(self, config):
         """
@@ -463,7 +460,7 @@ class OpticalSystem():
         light_hgt_at_groupリストとgroup_inrリストを読み込み、
         split patternsの項目から
         split_patternリストを読み込む。
-        group_valリストとpower_inrリストとpower_valリストを計算する
+        group_valリストとpow_inrリストとpow_valリストを計算する
         対応するBASICコード：*IN6, *EF3
         """
         group_data = get_floatlist(config, 'System', 'group data')
@@ -476,12 +473,12 @@ class OpticalSystem():
 
         # light_hgt_at_groupおよびgroup_inrからgroup_valを計算
         surf_no = 0
-        power_no = 0
+        pow_no = 0
         self.group_val = []
         for group_no in range(0, self.no_groups):
             if (self.split_pattern[group_no] == SplitPattern.NONE and
                     self.diff_ri[surf_no] == 0 and
-                    self.surfs_of_power[power_no] == 1 or self.group_inr == 0):
+                    self.surfs_of_pow[pow_no] == 1 or self.group_inr == 0):
                 self.group_val.append(0)
             else:
                 self.group_val.append(
@@ -492,57 +489,56 @@ class OpticalSystem():
                       light_hgt_at_group[group_no +
                                          1]) * rev(self.group_inr[group_no])) /
                     self.light_hgt_at_group[group_no + 1])
-                power_no += 1
-                surf_no += self.surfs_of_power[power_no]
+                pow_no += 1
+                surf_no += self.surfs_of_pow[pow_no]
             if self.split_pattern[group_no] != SplitPattern.NONE:
-                power_no += 1
-                surf_no += self.surfs_of_power[power_no]
+                pow_no += 1
+                surf_no += self.surfs_of_pow[pow_no]
 
-        # group_inrおよびgroup_valからpower_inrとpower_valへ変換
-        power_no = 0
+        # group_inrおよびgroup_valからpow_inrとpow_valへ変換
+        pow_no = 0
         delta = 0
-        self.power_inr = []
-        self.power_val = []
+        self.pow_inr = []
+        self.pow_val = []
         for group_no in range(0, self.no_groups):
             if self.split_pattern[group_no] == SplitPattern.NONE:
-                self.power_inr.append(self.group_inr[group_no] - delta)
-                self.power_val.append(self.group_val[group_no])
+                self.pow_inr.append(self.group_inr[group_no] - delta)
+                self.pow_val.append(self.group_val[group_no])
                 delta = 0
-                power_no += 1
+                pow_no += 1
             else:
                 v_u = self.spliv_param_1[group_no]
                 v_v = self.spliv_param_2[group_no]
                 v_f = self.group_val[group_no]
                 v_g = self.group_inr[group_no]
                 if self.split_pattern[group_no] == SplitPattern.FIRST_INTERVAL:
-                    self.power_inr.append(v_g - v_v * (v_f - v_u) /
-                                          (1 - v_u * v_v) / v_f - delta)
-                    self.power_val.append(v_u)
-                    self.power_inr.append(v_v)
-                    self.power_val.append((v_f - v_u) / (1 - v_u * v_v))
+                    self.pow_inr.append(v_g - v_v * (v_f - v_u) /
+                                        (1 - v_u * v_v) / v_f - delta)
+                    self.pow_val.append(v_u)
+                    self.pow_inr.append(v_v)
+                    self.pow_val.append((v_f - v_u) / (1 - v_u * v_v))
                 elif self.split_pattern[
                         group_no] == SplitPattern.LAST_INTERVAL:
-                    self.power_inr.append(v_g - (v_u * v_v) / v_f - delta)
-                    self.power_val.append((v_f - v_u) / (1 - v_u * v_v))
-                    self.power_inr.append(v_v)
-                    self.power_val.append(v_u)
+                    self.pow_inr.append(v_g - (v_u * v_v) / v_f - delta)
+                    self.pow_val.append((v_f - v_u) / (1 - v_u * v_v))
+                    self.pow_inr.append(v_v)
+                    self.pow_val.append(v_u)
                 elif self.split_pattern[
                         group_no] == SplitPattern.RATIO_INTERVAL:
-                    self.power_inr.append(
+                    self.pow_inr.append(
                         v_g - v_v * v_u / v_f * fn_p(v_u, v_f, v_v) - delta)
-                    self.power_val.append(fn_p(v_u, v_f, v_v))
-                    self.power_inr.append(v_v)
-                    self.power_val.append(v_u * fn_p(v_u, v_f, v_v))
+                    self.pow_val.append(fn_p(v_u, v_f, v_v))
+                    self.pow_inr.append(v_v)
+                    self.pow_val.append(v_u * fn_p(v_u, v_f, v_v))
                 elif self.split_pattern[group_no] == SplitPattern.FIRST_LAST:
-                    self.power_inr.append(v_g - (v_u + v_v - v_f) / v_v -
-                                          delta)
-                    self.power_val.append(v_u)
-                    self.power_inr.append((v_u + v_v - v_f) / v_u / v_v)
-                    self.power_val.append(v_v)
-                    delta = self.power_val[power_no] * self.power_inr[
-                        power_no + 1] / v_f
-                power_no += 2
-        self.power_inr_0 = self.power_inr[0]
+                    self.pow_inr.append(v_g - (v_u + v_v - v_f) / v_v - delta)
+                    self.pow_val.append(v_u)
+                    self.pow_inr.append((v_u + v_v - v_f) / v_u / v_v)
+                    self.pow_val.append(v_v)
+                    delta = self.pow_val[pow_no] * self.pow_inr[pow_no +
+                                                                1] / v_f
+                pow_no += 2
+        self.pow_inr_0 = self.pow_inr[0]
 
     def determine_hole_and_max(self):
         """
@@ -567,15 +563,12 @@ class OpticalSystem():
         self.kind_of_lens = []
         surf_no = 0
         lens_no = 0
-        for power_no in range(0, self.no_powers):
-            if (self.adj_surf_inr_no == 0 and
-                    self.adj_power_inr_no == power_no):
+        for pow_no in range(0, self.no_pows):
+            if (self.adj_surf_inr_no == 0 and self.adj_pow_inr_no == pow_no):
                 self.adj_surf_inr_no = surf_no
-            if (self.adj_power_inr_no == 0 and
-                    self.adj_surf_inr_no == surf_no):
-                self.adj_power_inr_no = power_no
-            for surf in range(surf_no,
-                              surf_no + self.surfs_of_power[power_no]):
+            if (self.adj_pow_inr_no == 0 and self.adj_surf_inr_no == surf_no):
+                self.adj_pow_inr_no = pow_no
+            for surf in range(surf_no, surf_no + self.surfs_of_pow[pow_no]):
                 self.lens_index.append(lens_no)
                 if self.is_air(surf) and self.is_air(surf + 1):
                     if (self.direction[surf].value ==
@@ -610,7 +603,7 @@ class OpticalSystem():
                 else:
                     self.surf_eff_radius.append(
                         self.lens_eff_radius[lens_no * 2 - 1])
-            surf_no = surf_no + self.surfs_of_power[power_no]
+            surf_no = surf_no + self.surfs_of_pow[pow_no]
         self.surf_inr_0 = self.surf_inr[0]
         if self.tracing_dir == TracingDirection.SCREEN_TO_APERTURE_EXT:
             self.kind_of_lens.append(KindOfLens.APERTURE)
@@ -662,37 +655,36 @@ class OpticalSystem():
             rev_fl = 0
         v_y, v_a, v_p = self.ray_tracing(dist_infinity, telephoto)
         y1 = v_a - rev_fl
-        x2 = self.power_inr[self.adj_power_inr_no]
+        x2 = self.pow_inr[self.adj_pow_inr_no]
         x1 = x2 * 1.1
-        self.power_inr[self.adj_power_inr_no] = x1
+        self.pow_inr[self.adj_pow_inr_no] = x1
         while True:
             v_y, v_a, v_p = self.ray_tracing(dist_infinity, telephoto)
             y2 = v_a - rev_fl
             x1, y1, x2, y2 = newton_step(x1, y1, x2, y2)
-            self.power_inr[self.adj_power_inr_no] = x1
+            self.pow_inr[self.adj_pow_inr_no] = x1
             if abs(y2) < .00001:
                 break
         if self.interval_adj == IntervalAdjustment.TELEPHOTO_POWER_0:
-            self.power_inr.append(self.tel_system_pos - v_p)
+            self.pow_inr.append(self.tel_system_pos - v_p)
 
-    def convert_surf_to_power(self):
+    def convert_surf_to_pow(self):
         """
         屈折面データから、パワーデータへの変換を行う
         対応するBASICコード：*EFG
         """
         surf_no = 0
-        self.power_inr = []
-        self.power_val = []
-        power_inr_prep_val = 0
-        for power_no in range(0, self.no_powers):
+        self.pow_inr = []
+        self.pow_val = []
+        pow_inr_prep_val = 0
+        for pow_no in range(0, self.no_pows):
             v_a = 0
             v_y = 1
             v_w = 0
             v_e_lst = []
             v_f_lst = []
-            for surf in range(surf_no,
-                              surf_no + self.surfs_of_power[power_no]):
-                self.surf_inr_of_power.append(self.surf_inr[surf])
+            for surf in range(surf_no, surf_no + self.surfs_of_pow[pow_no]):
+                self.surf_inr_of_pow.append(self.surf_inr[surf])
                 v_e = self.surf_inr[surf] / self.signed_ri[surf]
                 v_w = v_w + v_e / (v_y - v_e * v_a) / v_y
                 v_y = v_y - v_e * v_a
@@ -726,20 +718,19 @@ class OpticalSystem():
                             self.ptlc_val[lens_no] = (self.surf_roc[
                                 surf] * rev(self.surf_roc[surf + 1]))
                 elif self.is_air(surf):
-                    self.ptlc_val[lens_no] = self.power_val.append(v_a)
+                    self.ptlc_val[lens_no] = self.pow_val.append(v_a)
             v_a = rev(v_a)
-            self.power_inr.append(power_inr_prep_val + (1 - 1 / v_y) * v_a +
-                                  v_w)
-            power_inr_prep_val = (1 - v_y) * v_a
-            if self.surfs_of_power[power_no] == 2 and self.is_air(surf_no + 1):
-                self.division_ratio.append(v_f_lst[1] / v_f_lst[0])
-            elif self.surfs_of_power[power_no] == 3:
+            self.pow_inr.append(pow_inr_prep_val + (1 - 1 / v_y) * v_a + v_w)
+            pow_inr_prep_val = (1 - v_y) * v_a
+            if self.surfs_of_pow[pow_no] == 2 and self.is_air(surf_no + 1):
+                self.div_ratio.append(v_f_lst[1] / v_f_lst[0])
+            elif self.surfs_of_pow[pow_no] == 3:
                 if self.is_air(surf_no + 1):
-                    self.division_ratio.append(
+                    self.div_ratio.append(
                         (v_f_lst[1] + v_f_lst[2] - v_e_lst[2] * v_f_lst[1] *
                          v_f_lst[2]) * rev(v_f_lst[0]))
                 elif self.is_air(surf_no + 2):
-                    self.division_ratio.append(
+                    self.div_ratio.append(
                         v_f_lst[2] / (v_f_lst[0] + v_f_lst[1] -
                                       v_e_lst[1] * v_f_lst[0] * v_f_lst[1]))
                 else:
@@ -748,7 +739,7 @@ class OpticalSystem():
                     if (self.direction[surf_no +
                                        1].value == self.direction[surf_no +
                                                                   2].value):
-                        self.division_ratio.append(
+                        self.div_ratio.append(
                             -((self.signed_ri[surf_no +
                                               2] - self.direction[surf_no + 1].
                                value) * rev(self.surf_roc[surf_no + 1]) *
@@ -758,34 +749,33 @@ class OpticalSystem():
                               value) * rev(self.surf_roc[surf_no + 1]) *
                              (1 - v_e_lst[1] * v_f_lst[0]) + v_f_lst[0]))
                     else:
-                        self.division_ratio.append(
+                        self.div_ratio.append(
                             -(self.signed_ri[surf_no + 2] * rev(
                                 self.surf_roc[surf_no + 1]) *
                               (1 - v_e_lst[2] * v_f_lst[2]) + v_f_lst[3]) /
                             (self.signed_ri[surf_no + 1] * rev(
                                 self.surf_roc[surf_no + 1]) *
                              (1 - v_e_lst[1] * v_f_lst[0]) + v_f_lst[0]))
-            elif self.surfs_of_power[power_no] == 4:
-                self.division_ratio.append(
-                    (v_f_lst[2] + v_f_lst[3] -
-                     v_e_lst[3] * v_f_lst[2] * v_f_lst[3]) /
-                    (v_f_lst[0] + v_f_lst[1] -
-                     v_e_lst[1] * v_f_lst[0] * v_f_lst[1]))
+            elif self.surfs_of_pow[pow_no] == 4:
+                self.div_ratio.append((v_f_lst[2] + v_f_lst[3] -
+                                       v_e_lst[3] * v_f_lst[2] * v_f_lst[3]) /
+                                      (v_f_lst[0] + v_f_lst[1] -
+                                       v_e_lst[1] * v_f_lst[0] * v_f_lst[1]))
             else:
-                self.division_ratio.append(0)
-            surf_no += self.surfs_of_power[power_no]
+                self.div_ratio.append(0)
+            surf_no += self.surfs_of_pow[pow_no]
 
         if (self.obj_dist_spec == ObjectDistance.FIRST_POWER or
                 self.obj_dist_spec == ObjectDistance.INFINITY and
                 self.input_dtype != InputDataType.SURFACE and
                 self.interval_adj != IntervalAdjustment.NONE):
-            self.surf_inr[0] = (self.power_inr_0 - self.power_inr[0]
+            self.surf_inr[0] = (self.pow_inr_0 - self.pow_inr[0]
                                 ) * self.signed_ri[0] + self.surf_inr_0
-            self.power_inr[0] = self.power_inr_0
+            self.pow_inr[0] = self.pow_inr_0
         else:
-            self.power_inr_0 = self.power_inr[0]
+            self.pow_inr_0 = self.pow_inr[0]
 
-    def convert_power_to_surf(self):
+    def convert_pow_to_surf(self):
         """
         パワーデータから、屈折面データへの変換を行う
         対応するBASICコード：*DRG
@@ -793,63 +783,97 @@ class OpticalSystem():
         surf_no = 0
         cal_delta = False
         LU = []
-        for power_no in range(0, self.no_powers):
+        v_f_lst = [0, 0, 0, 0]
+        for pow_no in range(0, self.no_pows):
             lens_no = self.lens_index[surf_no]
-            S = self.ptlc_spec[lens_no]
-            if (self.ptlc_val[lens_no] != 0 and
-                    self.ptlc_spec[lens_no] == PTLCSpecification.FRONT or
-                    self.ptlc_spec[lens_no] == PTLCSpecification.BACK):
-                R = -1 / self.ptlc_val[lens_no]
-            else:
-                R = self.ptlc_val[lens_no]
-            L = []
-            ED = []
-            for surf in range(0, self.surfs_of_power[power_no]):
+            v_a = self.div_ratio[pow_no]
+            v_p = self.pow_val[pow_no]
+            v_r = self.ptlc_val[lens_no]
+            v_s = self.ptlc_spec[lens_no]
+            if (v_r != 0 and v_s == PTLCSpecification.FRONT or
+                    v_s == PTLCSpecification.BACK):
+                v_r = -1 / v_r
+            v_l_lst = []
+            v_n_lst = []
+            v_e_lst = []
+            for surf in range(0, self.surfs_of_pow[pow_no]):
                 if (1 < surf and 1 < self.ri[surf_no + surf] and
-                        self.surf_inr_of_power[surf_no + surf] <= 0):
+                        self.surf_inr_of_pow[surf_no + surf] <= 0):
                     cal_delta = True
-                L.append(self.diff_ri[surf_no + surf])
-                ED.append(
-                    abs(self.surf_inr_of_power[surf_no + surf]) /
+                v_l_lst.append(self.diff_ri[surf_no + surf])
+                v_n_lst.append(self.ri[surf_no + surf])
+                v_e_lst.append(
+                    abs(self.surf_inr_of_pow[surf_no + surf]) /
                     self.signed_ri[surf_no + surf])
-                LU.append(abs(self.surf_inr_of_power[surf_no + surf]))
-            ED[0] = 0
-            L0 = L[0]
-            L1 = L[1]
-            N1 = self.ri[surf_no + 1]
+                LU.append(abs(self.surf_inr_of_pow[surf_no + surf]))
+            v_e_lst[0] = 0
+
             while True:
-                E1 = ED[1]
-                if self.surfs_of_power[power_no] > 2:
-                    L2 = L[2]
-                    L3 = L[3]
-                    N2 = self.ri[surf_no + 2]
-                    E2 = ED[2]
-                    E3 = ED[3]
-                if self.surfs_of_power[power_no] == 1:
-                    F0 = self.power_val[power_no]
-                elif self.surfs_of_power[power] == 2:
+                no_surfs = self.surfs_of_pow[pow_no]
+                if no_surfs == 1:
+                    v_f_lst[0] = self.pow_val[pow_no]
+                elif no_surfs == 2:
                     if self.ri[surf_no + 1] == 1:
-                        F0 = fn_p(self.division_ratio[power_no],
-                                  self.power_val[power_no], ED[1])
-                        F1 = F0 * self.division_ratio[power_no]
+                        v_f_lst[0] = fn_p(self.div_ratio[pow_no],
+                                          self.pow_val[pow_no], ED[1])
+                        v_f_lst[1] = v_f_lst[0] * self.div_ratio[pow_no]
                     else:
-                        F0, F1 = fn_ps(S, L0, L1, self.power_val[power_no], E1,
-                                       R, F0, F1)
-                elif self.surfs_of_power[power] == 3:
-                    if self.ri[surf_no + 1] == 1:
-                        pass
+                        v_f_lst[0], v_f_lst[1] = fn_ps(
+                            v_s, v_l_lst[0], v_l_lst[1], v_p, v_e_lst[1], v_r,
+                            v_f_lst[0], v_f_lst[1])
+                elif no_surfs == 3:
+                    if v_n_lst[1] == 1:
+                        v_p_lst, v_f_lst = fn_fc(v_l_lst, v_n_lst, v_f_lst,
+                                                 v_e_lst, [v_r, 0], [v_s, 0],
+                                                 v_p, v_a, no_surfs, 0)
+                        v_f_lst[0] = v_p_lst[0]
+                    elif v_n_lst[2] == 1:
+                        v_p_lst, v_f_lst = fn_fc(v_l_lst, v_n_lst, v_f_lst,
+                                                 v_e_lst, [v_r, 0], [v_s, 0],
+                                                 v_p, v_a, no_surfs, 0)
+                        v_f_lst[2] = v_p_lst[1]
+                    else:
+                        v_r = rev(self.ptlc_val[lens_no + 1])
+                        sign = math.copysign(
+                            1,
+                            v_n_lst[0]) if v_n_lst[0] * v_n_lst[1] > 0 else 0
+                        v_p_lst, v_f_lst = fn_fc(v_l_lst, v_n_lst, v_f_lst,
+                                                 v_e_lst, [v_r, 0], [v_s, 0],
+                                                 v_p, v_a, no_surfs, sign)
+                        v_f_lst[1] = v_l_lst[1] * v_r
+                elif no_surfs == 4:
+                    v_s2 = self.ptlc_spec[lens_no + 1]
+                    v_r2 = -self.ptlc_val[lens_no + 1]
+                    if v_r2 != 0 and v_s2 != 0:
+                        v_r2 = -1 / v_r2
+                    if v_n_lst[2] == 1:
+                        v_p_lst, v_f_lst = fn_fc(
+                            v_l_lst, v_n_lst, v_f_lst, v_e_lst, [v_r, v_r2],
+                            [v_s, v_s2], v_p, v_a, no_surfs, sign)
+                    else:
+                        raise IllegalCaseError('Surfaces in a power is ' +
+                                               no_surfs +
+                                               ' and midst area is Air.')
+                if cal_delta == False:
+                    break
+                else:
+                    cal_delta = False
+
+                for surf in range(0, self.surfs_of_pow[pow_no]):
+                    
+
         """
         self.surf_inr[0] = 0
         I:surf_no=1
-        for IT:power_no=1 to self.no_powers:
+        for IT:pow_no=1 to self.no_pows:
             J=I:surf_no
-            KS=self.surfs_of_power[power_no]
-            A=self.division_ratio[power_no]
-            P0=self.power_val[power_no]
+            KS=self.surfs_of_pow[pow_no]
+            A=self.div_ratio[pow_no]
+            P0=self.pow_val[pow_no]
             IL:lens_no=self.lens_index[surf_no]
-            for M:surf=1 to self.surfs_of_power[power_no]:
-                Q=self.surf_inr_of_power[surf_no]
-                if 1<surf and 1<self.ri[surf_no] and self.surf_inr_of_power[surf_no]<=0:
+            for M:surf=1 to self.surfs_of_pow[pow_no]:
+                Q=self.surf_inr_of_pow[surf_no]
+                if 1<surf and 1<self.ri[surf_no] and self.surf_inr_of_pow[surf_no]<=0:
                     ILT:cal_delta=True
                 L[surf]=LL[surf_no]
                 Q=abs(Q)
@@ -866,21 +890,21 @@ class OpticalSystem():
                 R=-1/R
             while True:
                 E2=ED[2]
-                if KS:self.surfs_of_power[power_no]>2:
+                if KS:self.surfs_of_pow[pow_no]>2:
                     L3=L[3]
                     L4=L[4]
                     N3=NA[J+2]
                     E3=ED[3]
                     E4=ED[4]
-                if KS:self.surfs_of_power[power_no]=1:
-                    F1=P0:self.power_val[power_no]
-                elif KS:self.surfs_of_power[power_no]=2:
+                if KS:self.surfs_of_pow[pow_no]=1:
+                    F1=P0:self.pow_val[pow_no]
+                elif KS:self.surfs_of_pow[pow_no]=2:
                     if N2:self.ri[J+1]=1:
-                        F1=fnP(A:self.division_ratio[power_no],P0:self.power_val[power_no],E2:ED[2])
-                        F2=F1*A:self.division_ratio[power_no]
+                        F1=fnP(A:self.div_ratio[pow_no],P0:self.pow_val[pow_no],E2:ED[2])
+                        F2=F1*A:self.div_ratio[pow_no]
                     else:
-                        F1,F2=PS(S:ptlc_spec,L[1],L[2],P0:self.power_val,ED[2],R,,)
-                elif KS:self.surfs_of_power[power_no]=3:
+                        F1,F2=PS(S:ptlc_spec,L[1],L[2],P0:self.pow_val,ED[2],R,,)
+                elif KS:self.surfs_of_pow[pow_no]=3:
                     if N2:self.ri[J+1]=1:
                         gosub *FC
                         F1=P1
@@ -893,7 +917,7 @@ class OpticalSystem():
                             O=sgn(self.signed_ri[J+1])
                         gosub *FC
                         F2=L2*R
-                elif KS:self.surfs_of_power[power_no]=4:
+                elif KS:self.surfs_of_pow[pow_no]=4:
                     S2=self.ptlc_spec[self.lens_index[surf_no]+1]
                     R2=self.ptlc_val[self.lens_index[surf_no]+1]
                     if R2!=0 and S2=PTLCSpecification.FRONT or S2=PTLCSpecification.Back:
@@ -913,8 +937,8 @@ class OpticalSystem():
                     break
                 else:
                     ILT=False
-                Q=abs(self.surf_inr_of_power[surf_no])
-                for M:surf=1 to KS:self.surfs_of_power[power_no]
+                Q=abs(self.surf_inr_of_pow[surf_no])
+                for M:surf=1 to KS:self.surfs_of_pow[pow_no]
                     B=Q
                     B=QR
                     F=FD[surf]
@@ -924,22 +948,21 @@ class OpticalSystem():
                     if abs(F)>.000001 and LL[surf_no] != 0:
                         Q=LL:self.diff_ri[surf_no]/F/LC:self.axis_ratio[surf_no]**2
                         QR=1/R
-                    if surf>0 and LT:self.surf_inr_of_power[surf_no]=<0 and 1<NA:self.ri[surf_no]:
+                    if surf>0 and LT:self.surf_inr_of_pow[surf_no]=<0 and 1<NA:self.ri[surf_no]:
                         H=LHD:self.lens_radius[IL]
-                        O=-LT:self.surf_inr_of_power[surf_no]
+                        O=-LT:self.surf_inr_of_pow[surf_no]
                         if
         """
 
     def ray_tracing(self, dist_infinity, telephoto):
-        v_y = 0 if dist_infinity else 1
-        v_a = 1 - v_y
-        v_p = -self.power_inr[0]
-        for index in range(0, self.tel_no_powers
-                           if telephoto else self.no_powers):
-            v_y = v_y - v_a * self.power_inr[index]
-            v_a = v_a + v_y * self.power_val[index]
-            v_p = v_p + self.power_inr[index]
-        return v_y, v_a, v_p
+        o_y = 0 if dist_infinity else 1
+        o_a = 1 - o_y
+        o_p = -self.pow_inr[0]
+        for index in range(0, self.tel_no_pows if telephoto else self.no_pows):
+            o_y = o_y - o_a * self.pow_inr[index]
+            o_a = o_a + o_y * self.pow_val[index]
+            o_p = o_p + self.pow_inr[index]
+        return o_y, o_a, o_p
 
     def is_air(self, surf_no):
         """
@@ -958,31 +981,31 @@ class NoGlassDataError(Exception):
     pass
 
 
-class IllegalNumberError(Exception):
+class IllegalCaseError(Exception):
     pass
 
 
 def fn_fc(dri_lst, ri_lst, pv_lst, pi_lst, ptlc_v_lst, ptlc_s_lst, pv, divr,
-          delta, no_surf, sign):
+          no_surfs, sign):
     """
     対応するBASICコード：*FC
     """
     d0 = 0.05
     d1 = 0
     t_pv_lst, pv_lst, q0 = fn_pc(dri_lst, ri_lst, pv_lst, pi_lst, ptlc_v_lst,
-                                 ptlc_s_lst, pv, divr, d1, no_surf, sign)
+                                 ptlc_s_lst, pv, divr, no_surfs, sign, 0)
     t_pv_lst, pv_lst, q1 = fn_pc(dri_lst, ri_lst, pv_lst, pi_lst, ptlc_v_lst,
-                                 ptlc_s_lst, pv, divr, d0, no_surf, sign)
+                                 ptlc_s_lst, pv, divr, no_surfs, sign, d0)
     while abs(q1) > 0.0000005:
         d0, q0, d1, q1 = newton_step(d0, q0, d1, q1)
         t_pv_lst, pv_lst, q1 = fn_pc(dri_lst, ri_lst, pv_lst, pi_lst,
-                                     ptlc_v_lst, ptlc_s_lst, pv, divr, d0,
-                                     no_surf, sign)
+                                     ptlc_v_lst, ptlc_s_lst, pv, divr,
+                                     no_surfs, sign, d0)
     return t_pv_lst, pv_lst
 
 
 def fn_pc(dri_lst, ri_lst, pv_lst, pi_lst, ptlc_v_lst, ptlc_s_lst, pv, divr,
-          delta, no_surf, sign):
+          no_surfs, sign, delta):
     """
     対応するBASICコード：*PC
     """
@@ -994,7 +1017,7 @@ def fn_pc(dri_lst, ri_lst, pv_lst, pi_lst, ptlc_v_lst, ptlc_s_lst, pv, divr,
     else:
         t_pv_lst.append(fn_p(divr, pv, delta))
         t_pv_lst.append(fn_p(divr, pv, delta) * divr)
-    if no_surf == 4:
+    if no_surfs == 4:
         o_pv_lst.extend(
             list(
                 fn_ps(ptlc_s_lst[0], dri_lst[0], dri_lst[1], t_pv_lst[0],
@@ -1005,7 +1028,7 @@ def fn_pc(dri_lst, ri_lst, pv_lst, pi_lst, ptlc_v_lst, ptlc_s_lst, pv, divr,
                       pi_lst[3], ptlc_v_lst[1], pv_lst[2], pv_lst[3])))
         o_q = (delta - pi_lst[1] * pv_lst[0] / t_pv_lst[0] -
                pi_lst[3] * pv_lst[3] / t_pv_lst[1] - pi_lst[2])
-    elif abs(ri_lst[0]) == 1:
+    elif abs(ri_lst[1]) == 1:
         o_pv_lst.append(pv_lst[0])
         o_pv_lst.extend(
             list(
@@ -1013,7 +1036,7 @@ def fn_pc(dri_lst, ri_lst, pv_lst, pi_lst, ptlc_v_lst, ptlc_s_lst, pv, divr,
                       pi_lst[2], ptlc_v_lst[0], pv_lst[1], pv_lst[2])))
         o_pv_lst.append(pv_lst[3])
         o_q = delta - pi_lst[2] * pv_lst[2] / t_pv_lst[1] - pi_lst[1]
-    elif abs(ri_lst[1]) == 1:
+    elif abs(ri_lst[2]) == 1:
         o_pv_lst.extend(
             list(
                 fn_ps(ptlc_s_lst[0], dri_lst[0], dri_lst[1], t_pv_lst[0],
@@ -1022,11 +1045,11 @@ def fn_pc(dri_lst, ri_lst, pv_lst, pi_lst, ptlc_v_lst, ptlc_s_lst, pv, divr,
         o_pv_lst.append(pv_lst[3])
         o_q = delta - pi_lst[1] * pv_lst[0] / t_pv_lst[0] - pi_lst[0]
     else:
-        o_pv_lst.append((t_pv_lst[0] - (sign - ri_lst[0]) * ptlc_v_lst[0]) /
-                        (1 - pi_lst[1] * (sign - ri_lst[0]) * ptlc_v_lst[0]))
+        o_pv_lst.append((t_pv_lst[0] - (sign - ri_lst[1]) * ptlc_v_lst[0]) /
+                        (1 - pi_lst[1] * (sign - ri_lst[1]) * ptlc_v_lst[0]))
         o_pv_lst.append(pv_lst[1])
-        o_pv_lst.append((t_pv_lst[1] - (ri_lst[1] - sign) * ptlc_v_lst[0]) /
-                        (1 - pi_lst[2] * (ri_lst[1] - sign) * ptlc_v_lst[0]))
+        o_pv_lst.append((t_pv_lst[1] - (ri_lst[2] - sign) * ptlc_v_lst[0]) /
+                        (1 - pi_lst[2] * (ri_lst[2] - sign) * ptlc_v_lst[0]))
         o_pv_lst.append(pv_lst[3])
         o_q = (delta - pi_lst[1] * pv_lst[0] / t_pv_lst[0] -
                pi_lst[3] * pv_lst[3] / t_pv_lst[1] - pi_lst[2])
@@ -1041,12 +1064,11 @@ def fn_ps(ptlc_s, dri0, dri1, pv, pi, ptlc_v, o_pv0, o_pv1):
         return dri0 * ptlc_v, (pv - o_pv0) / (1 - pi * o_pv0)
     elif ptlc_s == 1:
         return dri1 * ptlc_v, (pv - o_pv1) / (1 - pi * o_pv1)
-    elif ptlc_s == 2:
-        return fn_p(ptlc_v, pv, pi), fn_p(ptlc_v, pv, pi) * ptlc_v
-    elif ptlc_s == 3:
+    elif ptlc_s == 2 or ptlc_s == 3:
         return fn_p(ptlc_v, pv, pi), fn_p(ptlc_v, pv, pi) * ptlc_v
     else:
-        raise IllegalNumberError()
+        raise IllegalCaseError(
+            'Power to Lens Curvature Specification Number is set to ' + ptlc_s)
 
 
 def fn_p(v_a, v_p, v_e):
