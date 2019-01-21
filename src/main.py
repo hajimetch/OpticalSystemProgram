@@ -345,7 +345,7 @@ class OpticalSystem():
         """
         configで指定されたデータファイルのsurfaces axis length ratiosと
         surfaces aspheric coefficientsの項目を読み込み、
-        axis_ratioリストとaspheric_coefficientリストを構成する
+        axis_ratioリストとasph_coeffリストを構成する
         対応するBASICコード：*IN6
         """
         surf_axis_data = get_floatlist(config, 'System',
@@ -354,24 +354,23 @@ class OpticalSystem():
         surf_aspheric_data = get_floatlist(config, 'System',
                                            'surfaces aspheric coefficients')
         self.axis_ratio = []
-        self.aspheric_coefficient = []
+        self.asph_coeff = []
         aspheric_no = 0
         for surf_no in range(0, self.no_surfs):
             if surf_no not in surf_axis_dict:
                 self.axis_ratio.append(1)
-                self.aspheric_coefficient.append([])
+                self.asph_coeff.append([])
             else:
                 self.axis_ratio.append(surf_axis_dict[surf_no])
                 if surf_axis_dict[surf_no] >= 0:
-                    self.aspheric_coefficient.append([])
+                    self.asph_coeff.append([])
                 else:
-                    aspheric_coefficient_element = []
+                    asph_coeff_element = []
                     for index in range(0, 4):
-                        aspheric_coefficient_element.append(
+                        asph_coeff_element.append(
                             surf_aspheric_data[aspheric_no * 4 + index] *
                             (self.scale / 100)**(index * 2 + 1))
-                        self.aspheric_coefficient.append(
-                            aspheric_coefficient_element)
+                        self.asph_coeff.append(asph_coeff_element)
                         aspheric_no += 1
 
     def prepare_glass_and_ri(self, config):
@@ -782,9 +781,10 @@ class OpticalSystem():
         """
         surf_no = 0
         cal_delta = False
-        LU = []
+        v_lu_lst = []
         v_f_lst = [0, 0, 0, 0]
         for pow_no in range(0, self.no_pows):
+            no_surfs = self.surfs_of_pow[pow_no]
             lens_no = self.lens_index[surf_no]
             v_a = self.div_ratio[pow_no]
             v_p = self.pow_val[pow_no]
@@ -796,7 +796,7 @@ class OpticalSystem():
             v_l_lst = []
             v_n_lst = []
             v_e_lst = []
-            for surf in range(0, self.surfs_of_pow[pow_no]):
+            for surf in range(0, no_surfs):
                 if (1 < surf and 1 < self.ri[surf_no + surf] and
                         self.surf_inr_of_pow[surf_no + surf] <= 0):
                     cal_delta = True
@@ -805,11 +805,11 @@ class OpticalSystem():
                 v_e_lst.append(
                     abs(self.surf_inr_of_pow[surf_no + surf]) /
                     self.signed_ri[surf_no + surf])
-                LU.append(abs(self.surf_inr_of_pow[surf_no + surf]))
+                v_lu_lst.append(abs(self.surf_inr_of_pow[surf_no + surf]))
             v_e_lst[0] = 0
 
             while True:
-                no_surfs = self.surfs_of_pow[pow_no]
+                lens_no = self.lens_index[surf_no]
                 if no_surfs == 1:
                     v_f_lst[0] = self.pow_val[pow_no]
                 elif no_surfs == 2:
@@ -859,100 +859,75 @@ class OpticalSystem():
                 else:
                     cal_delta = False
 
-                for surf in range(0, self.surfs_of_pow[pow_no]):
-                    
+                for surf in range(0, no_surfs):
+                    v_b = v_q
+                    v_br = v_qr
+                    v_q = 0
+                    v_qr = 0
+                    v_f = v_f_lst[surf]
+                    lens_no = self.lens_index[surf_no + surf]
+                    if abs(v_f) > 0.000001 and self.diff_ri[surf_no +
+                                                            surf] != 0:
+                        v_q = self.diff_ri[
+                            surf_no + surf] / v_f / self.axis_ratio[surf_no +
+                                                                    surf]**2
+                        v_qr = 1 / v_q
+                    if self.surf_inr_of_pow[surf_no +
+                                            surf] <= 0 and self.ri[surf_no +
+                                                                   surf] > 1:
+                        v_h = self.lens_radius[lens_no]
+                        v_o = -self.surface_inr_of_pow[surf_no + surf]
+                        if v_o == 0:
+                            v_o = math.floor(1.2 * (
+                                v_h * self.scale)**0.7) / 10 / self.scale
+                        if v_qr <= v_br:
+                            v_x = self.lens_radius[lens_no * 2 -
+                                                   1] if 0 < v_b else v_h
+                            v_y = self.lens_radius[lens_no *
+                                                   2] if 0 > v_q else v_h
+                            v_o = v_o + v_b - v_b * math.sqrt(
+                                abs(1 - (v_x * v_br / self.
+                                         axis_ratio[surf_no + surf - 1])**2)
+                            ) - v_q + v_q * math.sqrt(
+                                abs(1 - (v_v * v_qr / self.
+                                         axis_ratio[surf_no + surf])**2))
+                            if abs(v_o - v_lu_lst[surf_no + surf] > 0.0001):
+                                cal_delta = True
+                        v_lu_lst[surf_no + surf] = v_o
+                        v_e_lst[surf_no +
+                                surf] = v_o / self.signed_ri[surf_no + surf]
+            v_a = 0
+            v_y = 1
+            v_w = 0
+            for surf in range(0, no_surfs):
+                v_q = v_y
+                v_f = v_f_lst[surf]
+                v_y = v_y - v_e_lst[surf] * v_a
+                v_w = v_w + v_e_lst[surf] / v_q / v_y
+                v_a = v_a + v_y * v_f
+                self.surf_roc[surf_no + surf] = self.diff_ri[
+                    surf_no + surf] / v_f if abs(v_f) > 0.000001 else 0
+                if 1 < surf:
+                    self.surf_inr[surf_no + surf - 1] = self.v_lu_lst[surf_no +
+                                                                      surf - 1]
+            v_a = rev(v_a)
+            self.surf_inr[surf_no] += (
+                self.pow_inr[pow_no] -
+                (1 - 1 / v_y) * v_a - v_w) * self.signed_ri[surf_no]
+            self.surf_inr[surf_no + no_surfs] = (
+                v_y - 1) * v_a * self.signed_ri[surf_no + no_surfs]
 
-        """
-        self.surf_inr[0] = 0
-        I:surf_no=1
-        for IT:pow_no=1 to self.no_pows:
-            J=I:surf_no
-            KS=self.surfs_of_pow[pow_no]
-            A=self.div_ratio[pow_no]
-            P0=self.pow_val[pow_no]
-            IL:lens_no=self.lens_index[surf_no]
-            for M:surf=1 to self.surfs_of_pow[pow_no]:
-                Q=self.surf_inr_of_pow[surf_no]
-                if 1<surf and 1<self.ri[surf_no] and self.surf_inr_of_pow[surf_no]<=0:
-                    ILT:cal_delta=True
-                L[surf]=LL[surf_no]
-                Q=abs(Q)
-                LU[surf_no]=Q
-                ED[surf]=Q/self.signed_ri[surf_no]
-                surf_no=surf_no+1
-            ED[1]=0
-            L1=L[1]
-            L2=L[2]
-            N2=self.ri[J+1]
-            S=self.ptlc_spec[IL:lens_no]
-            R=self.ptlc_val[IL:lens_no]
-            if R!=0 and S=PTLCSpecification.FRONT or S=PTLCSpecification.BACK:
-                R=-1/R
-            while True:
-                E2=ED[2]
-                if KS:self.surfs_of_pow[pow_no]>2:
-                    L3=L[3]
-                    L4=L[4]
-                    N3=NA[J+2]
-                    E3=ED[3]
-                    E4=ED[4]
-                if KS:self.surfs_of_pow[pow_no]=1:
-                    F1=P0:self.pow_val[pow_no]
-                elif KS:self.surfs_of_pow[pow_no]=2:
-                    if N2:self.ri[J+1]=1:
-                        F1=fnP(A:self.div_ratio[pow_no],P0:self.pow_val[pow_no],E2:ED[2])
-                        F2=F1*A:self.div_ratio[pow_no]
-                    else:
-                        F1,F2=PS(S:ptlc_spec,L[1],L[2],P0:self.pow_val,ED[2],R,,)
-                elif KS:self.surfs_of_pow[pow_no]=3:
-                    if N2:self.ri[J+1]=1:
-                        gosub *FC
-                        F1=P1
-                    elif N3:NA[J+2]=1:
-                        gosub *FC
-                        F3=P2
-                    else:
-                        R=rev(self.ptlc_val[self.lens_index[surf_no]+1])
-                        if self.signed_ri[J+1]*self.signed_ri[J+2])>0:
-                            O=sgn(self.signed_ri[J+1])
-                        gosub *FC
-                        F2=L2*R
-                elif KS:self.surfs_of_pow[pow_no]=4:
-                    S2=self.ptlc_spec[self.lens_index[surf_no]+1]
-                    R2=self.ptlc_val[self.lens_index[surf_no]+1]
-                    if R2!=0 and S2=PTLCSpecification.FRONT or S2=PTLCSpecification.Back:
-                        R2=-1/R2
-                    if N3:NS[J+2]=1:
-                        gosub *FC
-                    else:
-                        ERROR
-                else:
-                    ERROR
-                FD[1]=F1
-                FD[2]=F2
-                FD[3]=F3
-                FD[4]=F4
-                I:surf_no=J
-                if ILT:cal_delta=False:
-                    break
-                else:
-                    ILT=False
-                Q=abs(self.surf_inr_of_pow[surf_no])
-                for M:surf=1 to KS:self.surfs_of_pow[pow_no]
-                    B=Q
-                    B=QR
-                    F=FD[surf]
-                    IL=ILD:self.lens_index[surf_no] - 1
-                    Q=0
-                    QR=0
-                    if abs(F)>.000001 and LL[surf_no] != 0:
-                        Q=LL:self.diff_ri[surf_no]/F/LC:self.axis_ratio[surf_no]**2
-                        QR=1/R
-                    if surf>0 and LT:self.surf_inr_of_pow[surf_no]=<0 and 1<NA:self.ri[surf_no]:
-                        H=LHD:self.lens_radius[IL]
-                        O=-LT:self.surf_inr_of_pow[surf_no]
-                        if
-        """
+        v_lde = self.pow_inr_0 * self.signed_ri_0 - self.surf_inr[0]
+        if self.obj_dist_spec == ObjectDistance.FIRST_POWER or (
+                self.obj_dist_spec == ObjectDistance.INFINITY and
+                self.input_dtype != InputDataType.SURFACE):
+            self.pow_inr_0 = self.pow_inr[0]
+            self.surf_inr_0 = self.surf_inr[0]
+        else:
+            self.pow_inr_0 = (self.surf_inr_0 + v_lde) / self.signed_ri_0
+            self.pow_inr[0] = self.pow_inr_0
+            self.surf_inr[0] = self.surf_inr_0
+
 
     def ray_tracing(self, dist_infinity, telephoto):
         o_y = 0 if dist_infinity else 1
