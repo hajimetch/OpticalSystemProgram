@@ -660,16 +660,16 @@ class OpticalSystem():
             telephoto = True
             rev_fl = 0
         v_y, v_a, v_p = self.ray_tracing_pow(dist_infinity, telephoto)
-        y1 = v_a - rev_fl
-        x2 = self.pow_inr[self.adj_pow_inr_no]
-        x1 = x2 * 1.1
-        self.pow_inr[self.adj_pow_inr_no] = x1
+        y0 = v_a - rev_fl
+        x1 = self.pow_inr[self.adj_pow_inr_no]
+        x0 = x1 * 1.1
+        self.pow_inr[self.adj_pow_inr_no] = x0
         while True:
             v_y, v_a, v_p = self.ray_tracing_pow(dist_infinity, telephoto)
-            y2 = v_a - rev_fl
-            x1, y1, x2, y2 = newton_step(x1, y1, x2, y2)
-            self.pow_inr[self.adj_pow_inr_no] = x1
-            if abs(y2) < .00001:
+            y1 = v_a - rev_fl
+            x0, y0, x1, y1 = newton_step(x0, y0, x1, y1)
+            self.pow_inr[self.adj_pow_inr_no] = x0
+            if abs(y1) < .00001:
                 break
         if self.interval_adj == IntervalAdjustment.TELEPHOTO_POWER_0:
             self.pow_inr.append(self.tel_system_pos - v_p)
@@ -1018,17 +1018,17 @@ def fn_fc(dri_lst, ri_lst, pv_lst, pi_lst, ptlc_v_lst, ptlc_s_lst, pv, divr,
     """
     対応するBASICコード：*FC
     """
-    d0 = 0.05
-    d1 = 0
-    t_pv_lst, pv_lst, q0 = fn_pc(dri_lst, ri_lst, pv_lst, pi_lst, ptlc_v_lst,
+    x0 = 0.05
+    x1 = 0
+    t_pv_lst, pv_lst, y0 = fn_pc(dri_lst, ri_lst, pv_lst, pi_lst, ptlc_v_lst,
                                  ptlc_s_lst, pv, divr, no_surfs, sign, 0)
-    t_pv_lst, pv_lst, q1 = fn_pc(dri_lst, ri_lst, pv_lst, pi_lst, ptlc_v_lst,
-                                 ptlc_s_lst, pv, divr, no_surfs, sign, d0)
-    while abs(q1) > 0.0000005:
-        d0, q0, d1, q1 = newton_step(d0, q0, d1, q1)
-        t_pv_lst, pv_lst, q1 = fn_pc(dri_lst, ri_lst, pv_lst, pi_lst,
+    t_pv_lst, pv_lst, y1 = fn_pc(dri_lst, ri_lst, pv_lst, pi_lst, ptlc_v_lst,
+                                 ptlc_s_lst, pv, divr, no_surfs, sign, x0)
+    while abs(y1) > 0.0000005:
+        x0, y0, x1, y1 = newton_step(x0, y0, x1, y1)
+        t_pv_lst, pv_lst, y1 = fn_pc(dri_lst, ri_lst, pv_lst, pi_lst,
                                      ptlc_v_lst, ptlc_s_lst, pv, divr,
-                                     no_surfs, sign, d0)
+                                     no_surfs, sign, x0)
     return t_pv_lst, pv_lst
 
 
