@@ -47,3 +47,8 @@
 | LR()   | self.surf_roc[]            | 屈折面の曲率半径                                             |
 | KSD()  | self.surfs_of_pow[]        | 各パワーを構成する屈折面の数                                 |
 | ITR    | self.tracing_dir           | 光線追跡方向                                                 |
+| LDE    | self.lde                   | 一時変数                                                     |
+| LO     | self.lo                    | 一時変数                                                     |
+| HO     | self.ho                    | 一時変数                                                     |
+| ICN    | self.icn                   | 一時変数                                                     |
+|        |                            |                                                              |

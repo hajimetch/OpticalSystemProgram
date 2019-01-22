@@ -148,6 +148,9 @@ class OpticalSystem():
         else:
             self.convert_pow_to_surf()
 
+        self.determine_starting_p()
+        self.icn = 1
+
     def read_data(self, config):
         """
         configで指定されたデータファイルから、光学系のデータを読み込む
@@ -917,17 +920,34 @@ class OpticalSystem():
             self.surf_inr[surf_no + no_surfs] = (
                 v_y - 1) * v_a * self.signed_ri[surf_no + no_surfs]
 
-        v_lde = self.pow_inr_0 * self.signed_ri_0 - self.surf_inr[0]
+        self.lde = self.pow_inr_0 * self.signed_ri_0 - self.surf_inr[0]
         if self.obj_dist_spec == ObjectDistance.FIRST_POWER or (
                 self.obj_dist_spec == ObjectDistance.INFINITY and
                 self.input_dtype != InputDataType.SURFACE):
             self.pow_inr_0 = self.pow_inr[0]
             self.surf_inr_0 = self.surf_inr[0]
         else:
-            self.pow_inr_0 = (self.surf_inr_0 + v_lde) / self.signed_ri_0
+            self.pow_inr_0 = (self.surf_inr_0 + self.lde) / self.signed_ri_0
             self.pow_inr[0] = self.pow_inr_0
             self.surf_inr[0] = self.surf_inr_0
 
+    def determine_starting_p(self):
+        """
+        投影距離のレンズ側の起点をself.obj_dist_specの値により指定する
+        対応するBASICコード：*L1C
+        """
+        if self.obj_dist_spec == ObjectDistance.PRINCIPAL_POSITION:
+            v_l = self.lo - self.ho
+        elif (self.obj_dist_spec == ObjectDistance.INFINITY and
+              self.input_dtype == InputDataType.SURFACE
+              ) or self.obj_dist_spec == ObjectDistance.FIRST_SURFACE:
+            v_l = self.lo
+        else:
+            v_l = self.lo - self.lde
+        self.pow_inr_0 = (v_l + self.lde) / self.signed_ri_0
+        self.signed_ri_0 = v_l
+        self.pow_inr[0] = self.pow_inr_0
+        self.signed_ri[0] = self.signed_ri_0
 
     def ray_tracing(self, dist_infinity, telephoto):
         o_y = 0 if dist_infinity else 1
