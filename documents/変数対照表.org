@@ -51,4 +51,5 @@
 | LO     | self.lo                    | 一時変数                                                     |
 | HO     | self.ho                    | 一時変数                                                     |
 | ICN    | self.icn                   | 一時変数                                                     |
+| K      | self.no_surfs              | 屈折面の数                                                   |
 |        |                            |                                                              |

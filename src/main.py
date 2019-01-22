@@ -140,7 +140,7 @@ class OpticalSystem():
         if self.input_dtype != InputDataType.SURFACE and (
                 self.interval_adj == IntervalAdjustment.FOCAL_LENGTH or
                 self.interval_adj == IntervalAdjustment.TELEPHOTO_POWER_0):
-            self.modify_lens_position()
+            self.adjust_lens_position()
 
         if (self.input_dtype == InputDataType.SURFACE and
                 self.interval_adj == IntervalAdjustment.NONE):
@@ -150,6 +150,10 @@ class OpticalSystem():
 
         self.determine_starting_p()
         self.icn = 1
+
+        if self.interval_adj == IntervalAdjustment.FOCAL_POSITION:
+            if self.input_dtype == InputDataType.SURFACE:
+                self.obj_dist_spec == ObjectDistance.INFINITY
 
     def read_data(self, config):
         """
@@ -642,7 +646,7 @@ class OpticalSystem():
             np.matrix([[tmp[i + j] for i in range(0, 3)]
                        for j in range(0, 3)]))
 
-    def modify_lens_position(self):
+    def adjust_lens_position(self):
         """
         絞りを含むレンズ位置の修正を行う
         対応するBASICコード：*INM
@@ -655,13 +659,13 @@ class OpticalSystem():
             dist_infinity = (self.obj_dist_spec == ObjectDistance.INFINITY)
             telephoto = True
             rev_fl = 0
-        v_y, v_a, v_p = self.ray_tracing(dist_infinity, telephoto)
+        v_y, v_a, v_p = self.ray_tracing_pow(dist_infinity, telephoto)
         y1 = v_a - rev_fl
         x2 = self.pow_inr[self.adj_pow_inr_no]
         x1 = x2 * 1.1
         self.pow_inr[self.adj_pow_inr_no] = x1
         while True:
-            v_y, v_a, v_p = self.ray_tracing(dist_infinity, telephoto)
+            v_y, v_a, v_p = self.ray_tracing_pow(dist_infinity, telephoto)
             y2 = v_a - rev_fl
             x1, y1, x2, y2 = newton_step(x1, y1, x2, y2)
             self.pow_inr[self.adj_pow_inr_no] = x1
@@ -949,9 +953,38 @@ class OpticalSystem():
         self.pow_inr[0] = self.pow_inr_0
         self.signed_ri[0] = self.signed_ri_0
 
-    def ray_tracing(self, dist_infinity, telephoto):
+    def adjust_focal_position(self):
+        """
+        焦点距離を合わせる
+        対応するBASICコード：*DCL
+        """
+        if (
+                self.tracing_dir == TracingDirection.SOURCE_TO_APERTURE or
+                self.tracing_dir == TracingDirection.SOURCE_TO_APERTURE_EXT
+        ) and self.di > 0 and self.interval_adj == IntervalAdjustment.FOCAL_POSITION:
+            pass
+
+    def ray_tracing_surf(self, dist_infinity):
+        """
+        屈折面データを用いて近軸光線追跡
+        対応するBASICコード：*PRT
+        """
         o_y = 0 if dist_infinity else 1
-        o_a = 1 - o_y
+        o_a = 1 if dist_infinity else 0
+        o_p = self.surf_inr[0]
+        for index in range(0, self.no_surfs):
+            o_y = o_y - o_a * self.surf_inr[index] / self.signed_ri[index]
+            o_a = o_a + o_y * self.diff_ri[index] * rev(self.surf_roc[index])
+            o_p = o_p + self.surf_inr[index]
+        return o_y, o_a, o_p
+
+    def ray_tracing_pow(self, dist_infinity, telephoto):
+        """
+        パワーデータを用いて近軸光線追跡
+        対応するBASICコード：*RTT など
+        """
+        o_y = 0 if dist_infinity else 1
+        o_a = 1 if dist_infinity else 0
         o_p = -self.pow_inr[0]
         for index in range(0, self.tel_no_pows if telephoto else self.no_pows):
             o_y = o_y - o_a * self.pow_inr[index]
