@@ -152,226 +152,243 @@ def all_of_valid(config, args):
 # Main part of this script.
 #
 
-config = configparser.ConfigParser()
-config.read('example.ini')
 
-projection = Projection(
-    config.get('Parameters', 'projection', fallback='spot'))
-reflector = Reflector(config.get('Parameters', 'reflector', fallback='false'))
-telephoto = Telephoto(config.get('Parameters', 'telephoto', fallback='false'))
-input_data_type = InputDataType(
-    config.get('Parameters', 'input data type', fallback='surface data'))
-tracing_number = TracingNumber(
-    config.get('Parameters', 'tracing number', fallback='single'))
-interval_adjustment = IntervalAdjustment(
-    config.get('Parameters', 'interval adjustment', fallback='none'))
-object_distance = ObjectDistance(
-    config.get(
-        'Parameters', 'object distance specification', fallback='to infinity'))
-incident_light_range = IncidentLightRange(
-    config.get(
-        'Parameters',
-        'incident light range definition',
-        fallback='by system and light source'))
-tracing_direction = TracingDirection(
-    config.get(
-        'Parameters', 'tracing direction', fallback='screen to aperture'))
-screen_display_dimension = ScreenDisplayDimension(
-    config.get(
-        'View Parameters',
-        'screen display dimension',
-        fallback='XY-plane and ray passing point coordinates'))
+def main():
+    config = configparser.ConfigParser()
+    config.read('example.ini')
 
-split_patterns = []
-for e in config.get('System', 'split patterns', fallback='none').split(','):
-    split_patterns.append(SplitPattern(e.strip()))
+    projection = Projection(
+        config.get('Parameters', 'projection', fallback='spot'))
+    reflector = Reflector(
+        config.get('Parameters', 'reflector', fallback='false'))
+    telephoto = Telephoto(
+        config.get('Parameters', 'telephoto', fallback='false'))
+    input_data_type = InputDataType(
+        config.get('Parameters', 'input data type', fallback='surface data'))
+    tracing_number = TracingNumber(
+        config.get('Parameters', 'tracing number', fallback='single'))
+    interval_adjustment = IntervalAdjustment(
+        config.get('Parameters', 'interval adjustment', fallback='none'))
+    object_distance = ObjectDistance(
+        config.get(
+            'Parameters',
+            'object distance specification',
+            fallback='to infinity'))
+    incident_light_range = IncidentLightRange(
+        config.get(
+            'Parameters',
+            'incident light range definition',
+            fallback='by system and light source'))
+    tracing_direction = TracingDirection(
+        config.get(
+            'Parameters', 'tracing direction', fallback='screen to aperture'))
+    screen_display_dimension = ScreenDisplayDimension(
+        config.get(
+            'View Parameters',
+            'screen display dimension',
+            fallback='XY-plane and ray passing point coordinates'))
 
-ptlc_specifications = []
-for e in config.get(
-        'System', 'power to lens curvature specifications',
-        fallback='none').split(','):
-    ptlc_specifications.append(PTLCSpecification(e.strip()))
+    split_patterns = []
+    for e in config.get(
+            'System', 'split patterns', fallback='none').split(','):
+        split_patterns.append(SplitPattern(e.strip()))
 
-with open('datafile.txt', 'wt') as fout:
-    fout.write('*SDT:data ')
-    system_name = 'FS' if projection == Projection.SPOT else ''
-    system_name += 'REF' if reflector == Reflector.TRUE else ''
-    system_name += config.get('Parameters', 'system name').strip()
-    write_dataline(fout, config, [[system_name]])
+    ptlc_specifications = []
+    for e in config.get(
+            'System', 'power to lens curvature specifications',
+            fallback='none').split(','):
+        ptlc_specifications.append(PTLCSpecification(e.strip()))
 
-    fout.write('*IAF:data ')
-    write_dataline(fout, config, [[str(telephoto.number)]])
+    with open('datafile.txt', 'wt') as fout:
+        fout.write('*SDT:data ')
+        system_name = 'FS' if projection == Projection.SPOT else ''
+        system_name += 'REF' if reflector == Reflector.TRUE else ''
+        system_name += config.get('Parameters', 'system name').strip()
+        write_dataline(fout, config, [[system_name]])
 
-    fout.write('*MSDT:data ')
-    args = []
-    args.append(['Telephoto', 'distance between systems'])
-    args.append(['Telephoto', 'focal length'])
-    args.append(['Telephoto', 'principal position of object side'])
-    args.append(['Telephoto', 'principal position of projection side'])
-    args.append(['Telephoto', 'aperture for display'])
-    args.append(['Telephoto', 'refractive index of projection region'])
-    args.append(['Telephoto', 'adjusting interval number'])
-    write_dataline(fout, config, args)
+        fout.write('*IAF:data ')
+        write_dataline(fout, config, [[str(telephoto.number)]])
 
-    fout.write('*SCL:data ')
-    write_dataline(fout, config, [['Parameters', 'scale', '100']])
+        fout.write('*MSDT:data ')
+        args = []
+        args.append(['Telephoto', 'distance between systems'])
+        args.append(['Telephoto', 'focal length'])
+        args.append(['Telephoto', 'principal position of object side'])
+        args.append(['Telephoto', 'principal position of projection side'])
+        args.append(['Telephoto', 'aperture for display'])
+        args.append(['Telephoto', 'refractive index of projection region'])
+        args.append(['Telephoto', 'adjusting interval number'])
+        write_dataline(fout, config, args)
 
-    fout.write('*NPSL:data ')
-    args = []
-    args.append(['System', 'number of powers'])
-    args.append(['System', 'number of surfaces'])
-    args.append(['System', 'number of lenses'])
-    if (input_data_type == InputDataType.GROUP):
-        args.append(['System', 'number of groups'])
-    ones = []
-    ones.append(['System', 'adjusting power interval number'])
-    ones.append(['System', 'adjusting surface interval number'])
-    args.extend(one_of_valid(config, ones))
-    if (interval_adjustment == IntervalAdjustment.FOCAL_POSITION or
-            interval_adjustment == IntervalAdjustment.FOCAL_POSITION_LENGTH or
-            interval_adjustment ==
-            IntervalAdjustment.FOCAL_POSITION_SEPARATED):
-        args.append(['System', 'focal position'])
-    if (interval_adjustment == IntervalAdjustment.TELEPHOTO_POWER_0):
-        args.append(['Telephoto', 'system position'])
-    if (interval_adjustment == IntervalAdjustment.FOCAL_LENGTH or
-            interval_adjustment == IntervalAdjustment.FOCAL_POSITION_LENGTH):
-        args.append(['System', 'focal length'])
-    if (interval_adjustment == IntervalAdjustment.FOCAL_POSITION_SEPARATED):
-        args.append(['System', 'fixed lens position'])
-    if (interval_adjustment == IntervalAdjustment.FOCAL_POSITION_LENGTH):
-        args.append(['System', 'iris position'])
-    if (interval_adjustment == IntervalAdjustment.FOCAL_POSITION_SEPARATED):
-        args.append(['System', 'adjusting interval number behind'])
-    if (interval_adjustment == IntervalAdjustment.TELEPHOTO_POWER_0):
+        fout.write('*SCL:data ')
+        write_dataline(fout, config, [['Parameters', 'scale', '100']])
+
+        fout.write('*NPSL:data ')
+        args = []
+        args.append(['System', 'number of powers'])
+        args.append(['System', 'number of surfaces'])
+        args.append(['System', 'number of lenses'])
+        if (input_data_type == InputDataType.GROUP):
+            args.append(['System', 'number of groups'])
         ones = []
-        ones.append(['Telephoto', 'number of surfaces'])
-        ones.append(['Telephoto', 'number of powers'])
+        ones.append(['System', 'adjusting power interval number'])
+        ones.append(['System', 'adjusting surface interval number'])
         args.extend(one_of_valid(config, ones))
-    write_dataline(fout, config, args)
+        if (interval_adjustment == IntervalAdjustment.FOCAL_POSITION or
+                interval_adjustment == IntervalAdjustment.FOCAL_POSITION_LENGTH
+                or interval_adjustment ==
+                IntervalAdjustment.FOCAL_POSITION_SEPARATED):
+            args.append(['System', 'focal position'])
+        if (interval_adjustment == IntervalAdjustment.TELEPHOTO_POWER_0):
+            args.append(['Telephoto', 'system position'])
+        if (interval_adjustment == IntervalAdjustment.FOCAL_LENGTH or
+                interval_adjustment ==
+                IntervalAdjustment.FOCAL_POSITION_LENGTH):
+            args.append(['System', 'focal length'])
+        if (interval_adjustment ==
+                IntervalAdjustment.FOCAL_POSITION_SEPARATED):
+            args.append(['System', 'fixed lens position'])
+        if (interval_adjustment == IntervalAdjustment.FOCAL_POSITION_LENGTH):
+            args.append(['System', 'iris position'])
+        if (interval_adjustment ==
+                IntervalAdjustment.FOCAL_POSITION_SEPARATED):
+            args.append(['System', 'adjusting interval number behind'])
+        if (interval_adjustment == IntervalAdjustment.TELEPHOTO_POWER_0):
+            ones = []
+            ones.append(['Telephoto', 'number of surfaces'])
+            ones.append(['Telephoto', 'number of powers'])
+            args.extend(one_of_valid(config, ones))
+        write_dataline(fout, config, args)
 
-    fout.write('*NSPR:data ')
-    args = []
-    args.append(['System', 'surfaces of powers'])
-    args.append(['System', 'division ratios of powers'])
-    write_dataline(fout, config, args)
+        fout.write('*NSPR:data ')
+        args = []
+        args.append(['System', 'surfaces of powers'])
+        args.append(['System', 'division ratios of powers'])
+        write_dataline(fout, config, args)
 
-    fout.write('*INC:data ')
-    args = []
-    args.append([str(object_distance.number)])
-    args.append([str(incident_light_range.number)])
-    ones = []
-    ones.append(['System', 'aperture radius'])
-    ones.append(['System', 'light source radius'])
-    args.extend(one_of_valid(config, ones))
-    args.append(['System', 'object distance'])
-    args.append([str(tracing_direction.number)])
-    if (tracing_direction == TracingDirection.SCREEN_TO_APERTURE_EXT):
-        args.append(['System', 'aperture to light source'])
-        args.extend(all_of_valid(config, [['System', 'mirror to valve']]))
-    elif (tracing_direction == TracingDirection.SOURCE_TO_APERTURE or
-          tracing_direction == TracingDirection.SOURCE_TO_APERTURE_EXT):
+        fout.write('*INC:data ')
+        args = []
+        args.append([str(object_distance.number)])
+        args.append([str(incident_light_range.number)])
         ones = []
-        ones.append(['System', 'aperture position'])
-        #        ones.append(['System', 'aperture radius real'])
-        args.extend(all_of_valid(config, ones))
-    write_dataline(fout, config, args)
+        ones.append(['System', 'aperture radius'])
+        ones.append(['System', 'light source radius'])
+        args.extend(one_of_valid(config, ones))
+        args.append(['System', 'object distance'])
+        args.append([str(tracing_direction.number)])
+        if (tracing_direction == TracingDirection.SCREEN_TO_APERTURE_EXT):
+            args.append(['System', 'aperture to light source'])
+            args.extend(all_of_valid(config, [['System', 'mirror to valve']]))
+        elif (tracing_direction == TracingDirection.SOURCE_TO_APERTURE or
+              tracing_direction == TracingDirection.SOURCE_TO_APERTURE_EXT):
+            ones = []
+            ones.append(['System', 'aperture position'])
+            #        ones.append(['System', 'aperture radius real'])
+            args.extend(all_of_valid(config, ones))
+        write_dataline(fout, config, args)
 
-    fout.write('*INCA:data ')
-    args = []
-    if (incident_light_range == IncidentLightRange.SYSTEM_SOURCE or
-            incident_light_range == IncidentLightRange.APERTURE_IRIS_SOURCE):
-        args.append(['Light Source', 'light source file'])
-        args.append(['Light Source', 'diffusion radius'])
-        args.append(['Light Source', 'number of filaments'])
-        args.append(['Light Source', 'filament position'])
-        args.append(['Light Source', 'filament length'])
-        args.append(['Light Source', 'number of aperture segments'])
-        args.append(['Light Source', 'angle range'])
-        args.append(['Light Source', 'number of tracing rays'])
-        args.append(['Light Source', 'iris surface number'])
-        args.append(['Light Source', 'limit surface number'])
-    write_dataline(fout, config, args)
+        fout.write('*INCA:data ')
+        args = []
+        if (incident_light_range == IncidentLightRange.SYSTEM_SOURCE or
+                incident_light_range ==
+                IncidentLightRange.APERTURE_IRIS_SOURCE):
+            args.append(['Light Source', 'light source file'])
+            args.append(['Light Source', 'diffusion radius'])
+            args.append(['Light Source', 'number of filaments'])
+            args.append(['Light Source', 'filament position'])
+            args.append(['Light Source', 'filament length'])
+            args.append(['Light Source', 'number of aperture segments'])
+            args.append(['Light Source', 'angle range'])
+            args.append(['Light Source', 'number of tracing rays'])
+            args.append(['Light Source', 'iris surface number'])
+            args.append(['Light Source', 'limit surface number'])
+        write_dataline(fout, config, args)
 
-    fout.write('*SCRN:data ')
-    args = []
-    if (tracing_direction == TracingDirection.SOURCE_TO_APERTURE):
-        args.append(['System', 'light source to screen'])
-        args.append(['System', 'screen radius'])
-    write_dataline(fout, config, args)
+        fout.write('*SCRN:data ')
+        args = []
+        if (tracing_direction == TracingDirection.SOURCE_TO_APERTURE):
+            args.append(['System', 'light source to screen'])
+            args.append(['System', 'screen radius'])
+        write_dataline(fout, config, args)
 
-    fout.write('*EF:data ')
-    write_dataline(fout, config, [[
-        str(input_data_type.number +
-            (tracing_number.number + interval_adjustment.number) * 10)
-    ]])
+        fout.write('*EF:data ')
+        write_dataline(fout, config, [[
+            str(input_data_type.number +
+                (tracing_number.number + interval_adjustment.number) * 10)
+        ]])
 
-    fout.write('*DSCV:data ')
-    args = []
-    if (input_data_type == InputDataType.SURFACE):
-        args.append(['System', 'surface data'])
-    write_dataline(fout, config, args)
+        fout.write('*DSCV:data ')
+        args = []
+        if (input_data_type == InputDataType.SURFACE):
+            args.append(['System', 'surface data'])
+        write_dataline(fout, config, args)
 
-    fout.write('*DSPW:data ')
-    args = []
-    if (input_data_type == InputDataType.POWER):
-        args.append(['System', 'power data'])
-    elif (input_data_type == InputDataType.POWER_LIGHT):
-        args.append(['System', 'power and light data'])
-    elif (input_data_type == InputDataType.GROUP):
-        args.append(['System', 'group data'])
-    write_dataline(fout, config, args)
+        fout.write('*DSPW:data ')
+        args = []
+        if (input_data_type == InputDataType.POWER):
+            args.append(['System', 'power data'])
+        elif (input_data_type == InputDataType.POWER_LIGHT):
+            args.append(['System', 'power and light data'])
+        elif (input_data_type == InputDataType.GROUP):
+            args.append(['System', 'group data'])
+        write_dataline(fout, config, args)
 
-    fout.write('*PSPL:data ')
-    args = []
-    if (input_data_type == InputDataType.GROUP):
-        for e in split_patterns:
-            args.append(str(e.number))
-        args.append(['System', 'split parameters first'])
-        args.append(['System', 'split parameters second'])
-    write_dataline(fout, config, args)
+        fout.write('*PSPL:data ')
+        args = []
+        if (input_data_type == InputDataType.GROUP):
+            for e in split_patterns:
+                args.append(str(e.number))
+            args.append(['System', 'split parameters first'])
+            args.append(['System', 'split parameters second'])
+        write_dataline(fout, config, args)
 
-    fout.write('*GLAS:data ')
-    write_dataline(fout, config, [['System', 'glass type names']])
+        fout.write('*GLAS:data ')
+        write_dataline(fout, config, [['System', 'glass type names']])
 
-    fout.write('*DSTK:data ')
-    write_dataline(fout, config, [['System', 'surface intervals of powers']])
+        fout.write('*DSTK:data ')
+        write_dataline(fout, config,
+                       [['System', 'surface intervals of powers']])
 
-    fout.write('*CURV:data ')
-    args = []
-    for e in ptlc_specifications:
-        args.append([str(e.number)])
-    args.append(['System', 'power to lens curvature values'])
-    write_dataline(fout, config, args)
+        fout.write('*CURV:data ')
+        args = []
+        for e in ptlc_specifications:
+            args.append([str(e.number)])
+        args.append(['System', 'power to lens curvature values'])
+        write_dataline(fout, config, args)
 
-    fout.write('*LRAD:data ')
-    write_dataline(fout, config, [['System', 'lens radiuses']])
+        fout.write('*LRAD:data ')
+        write_dataline(fout, config, [['System', 'lens radiuses']])
 
-    fout.write('*LAR:data ')
-    write_dataline(fout, config, [['System', 'lens effective radiuses']])
+        fout.write('*LAR:data ')
+        write_dataline(fout, config, [['System', 'lens effective radiuses']])
 
-    fout.write('*ALR:data ')
-    write_dataline(fout, config, [['System', 'surfaces axis length ratios']])
+        fout.write('*ALR:data ')
+        write_dataline(fout, config,
+                       [['System', 'surfaces axis length ratios']])
 
-    fout.write('*ASPH:data ')
-    write_dataline(fout, config, [['System',
-                                   'surfaces aspheric coefficients']])
+        fout.write('*ASPH:data ')
+        write_dataline(fout, config,
+                       [['System', 'surfaces aspheric coefficients']])
 
-    fout.write('*DISP:data ')
-    args = []
-    args.append(['View Parameters', 'X-axis length'])
-    args.append(['View Parameters', 'screen edge to first surface'])
-    args.append(['View Parameters', 'Y-coordinate at screen center'])
-    args.append(['View Parameters', 'X-axis grid pitch'])
-    args.append(['View Parameters', 'Y-axis grid pitch'])
-    args.append([str(screen_display_dimension.number)])
-    write_dataline(fout, config, args)
+        fout.write('*DISP:data ')
+        args = []
+        args.append(['View Parameters', 'X-axis length'])
+        args.append(['View Parameters', 'screen edge to first surface'])
+        args.append(['View Parameters', 'Y-coordinate at screen center'])
+        args.append(['View Parameters', 'X-axis grid pitch'])
+        args.append(['View Parameters', 'Y-axis grid pitch'])
+        args.append([str(screen_display_dimension.number)])
+        write_dataline(fout, config, args)
 
-    fout.write('*DEND:data ')
-    args = []
-    args.append(['Light Source', 'number of mirror splitting'])
-    args.append(['Light Source', 'number of mirror facets'])
-    args.append(['Light Source', 'heights of mirror facet edges'])
-    args.append(
-        ['Light Source', 'angles between mirror facets and optical axis'])
-    write_dataline(fout, config, args)
+        fout.write('*DEND:data ')
+        args = []
+        args.append(['Light Source', 'number of mirror splitting'])
+        args.append(['Light Source', 'number of mirror facets'])
+        args.append(['Light Source', 'heights of mirror facet edges'])
+        args.append(
+            ['Light Source', 'angles between mirror facets and optical axis'])
+        write_dataline(fout, config, args)
+
+
+if __name__ == '__main__':
+    main()
