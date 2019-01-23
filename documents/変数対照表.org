@@ -5,14 +5,18 @@
 | AP     | self.ap_radius             | アパチャ半径/焦点距離尺度                                    |
 | AC(,)  | self.asph_coeff[,]         | 非球面係数                                                   |
 | LC()   | self.axis_ratio[]          | 楕円面のY軸方向径/X軸方向径                                  |
+| DI     | self.di                    |                                                              |
 | LL()   | self.diff_ri[]             | ガラスの屈折率の差分リスト                                   |
 | LS()   | self.direction[]           | 光線方向                                                     |
 | LA()   | self.dispersion[]          | ガラスの分散率の逆数                                         |
 | FR()   | self.division_ratio[]      | パワーを分割する場合の分割比(第２パワー/第１パワー)          |
+| DS     | self.ds                    |                                                              |
 | LG()   | self.glass[]               | ガラス番号またはガラスデータ                                 |
 | TD()   | self.group_inr[]           | グループの間隔                                               |
 | GD()   | self.group_val[]           | グループのパワー値                                           |
+| HO     | self.ho                    |                                                              |
 | LMD    | self.hole_value            | 光源反射鏡の中心穴半径の自乗またはバルブ半径の自乗           |
+| ICN    | self.icn                   |                                                              |
 | EF     | self.input_dtype           | 初期データ入力条件                                           |
 | IDA    | self.interval_adj          | 読み込みデータ変更                                           |
 | C2D(,) | self.inverse['equal_area'] | 収差曲線の面積を考慮した近似多項式の係数を求めるための逆行列 |
@@ -24,14 +28,17 @@
 | LHD()  | self.lens_radius[]         | レンズの外径                                                 |
 | SD()   | self.light_hgt_at_group[]  | 近軸光線の各グループにおける入射高                           |
 | LY()   | self.light_hgt_at_pow[]    | 近軸光線の各パワーにおける入射高                             |
+| LO     | self.lo                    |                                                              |
 | HM     | self.max_radius            | レンズとアパチャの最大径                                     |
 | KT     | self.no_pows               | パワーの数                                                   |
+| K      | self.no_surfs              | 屈折面の数                                                   |
 | IC     | self.obj_dist_spec         | 初期条件                                                     |
 | LE()   | self.pow_inr[]             | パワーの間隔                                                 |
 | LE1    | self.pow_inr_0             | パワーの間隔の一時変数(LE(1)に相当)                          |
 | LF()   | self.pow_val[]             | パワーのパワー値                                             |
 | LNS()  | self.ptlc_spec[]           | 曲率半径の指定方法                                           |
 | LNR()  | self.ptlc_val[]            | 曲率半径または曲率半径の比                                   |
+| RF     | self.rf                    |                                                              |
 | NA()   | self.ri[]                  | ガラスの屈折率の絶対値                                       |
 | SF     | self.scale                 | 焦点距離尺度                                                 |
 | LN()   | self.signed_ri[]           | ガラスの屈折率                                               |
@@ -43,13 +50,11 @@
 | IDL()  | self.surf_index[]          | レンズ番号                                                   |
 | LD()   | self.surf_inr[]            | 屈折面の間隔                                                 |
 | LD1    | self.surf_inr_0            | 屈折面の間隔の一時変数(LD(1)に相当)                          |
+| LDE    | self.surf_inr_delta        | LE1×LN1-LD1に相当                                           |
+| LDV    | self.surf_inr_inf          | LO=∞のときのLD(KV)に相当                                    |
 | LT()   | self.surf_inr_of_pow[]     | １つのパワーが複数の屈折面からなる場合のパワー内の屈折面間隔 |
 | LR()   | self.surf_roc[]            | 屈折面の曲率半径                                             |
 | KSD()  | self.surfs_of_pow[]        | 各パワーを構成する屈折面の数                                 |
 | ITR    | self.tracing_dir           | 光線追跡方向                                                 |
-| LDE    | self.lde                   | 一時変数                                                     |
-| LO     | self.lo                    | 一時変数                                                     |
-| HO     | self.ho                    | 一時変数                                                     |
-| ICN    | self.icn                   | 一時変数                                                     |
-| K      | self.no_surfs              | 屈折面の数                                                   |
-|        |                            |                                                              |
+| IEN    | self.program_operation     | プログラム制御変数                                           |
+| KN     | self.tel_no_surfs          |                                                              |
