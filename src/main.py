@@ -144,41 +144,7 @@ class OpticalSystem():
 
         self.calculate_inverse()
 
-        if self.input_dtype != InputDataType.SURFACE and (
-                self.interval_adj == IntervalAdjustment.FOCAL_LENGTH or
-                self.interval_adj == IntervalAdjustment.TELEPHOTO_POWER_0):
-            self.adjust_position_pow(
-                self.interval_adj == IntervalAdjustment.FOCAL_LENGTH or
-                self.obj_dist_spec == ObjectDistance.INFINITY)
-
-        if (self.input_dtype == InputDataType.SURFACE and
-                self.interval_adj == IntervalAdjustment.NONE):
-            self.convert_surf_to_pow()
-        else:
-            self.convert_pow_to_surf()
-
-        self.determine_sp_pow()
-        self.icn = 1
-
-        if self.interval_adj == IntervalAdjustment.FOCAL_LENGTH:
-            if self.input_dtype == InputDataType.SURFACE:
-                self.adjust_position_surf(True)
-        elif self.interval_adj == IntervalAdjustment.FOCAL_POSITION:
-            if (self.tracing_dir == TracingDirection.SCREEN_TO_APERTURE or
-                    self.tracing_dir ==
-                    TracingDirection.SCREEN_TO_APERTURE_EXT):
-                self.adjust_position_surf(True)
-                self.surf_inr_inf = self.surf_inr[self.adj_surf_inr_no]
-                if self.program_operation == ProgramOperation.NEW:
-                    print("物体無限遠で計算終了")
-            self.adjust_position_surf(
-                self.obj_dist_spec == ObjectDistance.INFINITY)
-        elif self.interval_adj == IntervalAdjustment.TELEPHOTO_POWER_0:
-            if self.input_dtype == InputDataType.SURFACE:
-                self.adjust_position_surf(
-                    self.obj_dist_spec == ObjectDistance.INFINITY)
-        elif self.interval_adj == IntervalAdjustment.FOCAL_POSITION_LENGTH:
-            pass
+        self.adjust_lens_position()
 
     def read_data(self, config):
         """
@@ -338,7 +304,7 @@ class OpticalSystem():
             for i, j, k in zip(* [iter(lens_eff_radius_data)] * 3)
         }
         self.lens_eff_radius = []
-        for lens_no in range(0, self.no_lenses):
+        for lens_no in range(self.no_lenses):
             if lens_no not in lens_eff_radius_dict:
                 self.lens_eff_radius.append(self.lens_radius[lens_no])
                 self.lens_eff_radius.append(self.lens_radius[lens_no])
@@ -388,7 +354,7 @@ class OpticalSystem():
         self.axis_ratio = []
         self.asph_coeff = []
         aspheric_no = 0
-        for surf_no in range(0, self.no_surfs):
+        for surf_no in range(self.no_surfs):
             if surf_no not in surf_axis_dict:
                 self.axis_ratio.append(1)
                 self.asph_coeff.append([])
@@ -398,7 +364,7 @@ class OpticalSystem():
                     self.asph_coeff.append([])
                 else:
                     asph_coeff_element = []
-                    for index in range(0, 4):
+                    for index in range(4):
                         asph_coeff_element.append(
                             surf_aspheric_data[aspheric_no * 4 + index] *
                             (self.scale / 100)**(index * 2 + 1))
@@ -470,7 +436,7 @@ class OpticalSystem():
         self.pow_inr = pow_light_data[1::2]
         surf_no = 0
         self.pow_val = []
-        for pow_no in range(0, self.no_pows):
+        for pow_no in range(self.no_pows):
             if (self.diff_ri[surf_no] == 0 and self.surfs_of_pow[pow_no] == 1
                     or self.pow_inr[pow_no] == 0):
                 self.pow_val.append(0)
@@ -506,7 +472,7 @@ class OpticalSystem():
         surf_no = 0
         pow_no = 0
         self.group_val = []
-        for group_no in range(0, self.no_groups):
+        for group_no in range(self.no_groups):
             if (self.split_pattern[group_no] == SplitPattern.NONE and
                     self.diff_ri[surf_no] == 0 and
                     self.surfs_of_pow[pow_no] == 1 or self.group_inr == 0):
@@ -531,7 +497,7 @@ class OpticalSystem():
         delta = 0
         self.pow_inr = []
         self.pow_val = []
-        for group_no in range(0, self.no_groups):
+        for group_no in range(self.no_groups):
             if self.split_pattern[group_no] == SplitPattern.NONE:
                 self.pow_inr.append(self.group_inr[group_no] - delta)
                 self.pow_val.append(self.group_val[group_no])
@@ -594,7 +560,7 @@ class OpticalSystem():
         self.kind_of_lens = []
         surf_no = 0
         lens_no = 0
-        for pow_no in range(0, self.no_pows):
+        for pow_no in range(self.no_pows):
             if (self.adj_surf_inr_no == 0 and self.adj_pow_inr_no == pow_no):
                 self.adj_surf_inr_no = surf_no
             if (self.adj_pow_inr_no == 0 and self.adj_surf_inr_no == surf_no):
@@ -656,20 +622,17 @@ class OpticalSystem():
         for index in range(4, 17, 2):
             tmp.append(sum([e**index for e in CAL_POINTS]))
         self.inverse['even'] = np.linalg.inv(
-            np.matrix([[tmp[i + j] for i in range(0, 3)]
-                       for j in range(0, 3)]))
+            np.matrix([[tmp[i + j] for i in range(3)] for j in range(3)]))
         tmp = []
         for index in range(2, 11):
             tmp.append(sum([e**index for e in CAL_POINTS[::-1] + CAL_POINTS]))
         self.inverse['odd'] = np.linalg.inv(
-            np.matrix([[tmp[i + j] for i in range(0, 4)]
-                       for j in range(0, 4)]))
+            np.matrix([[tmp[i + j] for i in range(4)] for j in range(4)]))
         tmp = []
         for index in range(4, 17, 2):
             tmp.append(sum([e**index for e in CAL_POINTS_EQUAL_AREA]))
         self.inverse['equal_area'] = np.linalg.inv(
-            np.matrix([[tmp[i + j] for i in range(0, 3)]
-                       for j in range(0, 3)]))
+            np.matrix([[tmp[i + j] for i in range(3)] for j in range(3)]))
 
     def convert_surf_to_pow(self):
         """
@@ -680,7 +643,7 @@ class OpticalSystem():
         self.pow_inr = []
         self.pow_val = []
         pow_inr_prep_val = 0
-        for pow_no in range(0, self.no_pows):
+        for pow_no in range(self.no_pows):
             v_a = 0
             v_y = 1
             v_w = 0
@@ -787,7 +750,7 @@ class OpticalSystem():
         cal_delta = False
         v_lu_lst = []
         v_f_lst = [0, 0, 0, 0]
-        for pow_no in range(0, self.no_pows):
+        for pow_no in range(self.no_pows):
             no_surfs = self.surfs_of_pow[pow_no]
             lens_no = self.lens_index[surf_no]
             v_a = self.div_ratio[pow_no]
@@ -800,7 +763,7 @@ class OpticalSystem():
             v_l_lst = []
             v_n_lst = []
             v_e_lst = []
-            for surf in range(0, no_surfs):
+            for surf in range(no_surfs):
                 if (1 < surf and 1 < self.ri[surf_no + surf] and
                         self.surf_inr_of_pow[surf_no + surf] <= 0):
                     cal_delta = True
@@ -859,7 +822,7 @@ class OpticalSystem():
                                                no_surfs +
                                                ' and midst area is Air.')
                 if cal_delta == True:  # 中心厚計算
-                    for surf in range(0, no_surfs):
+                    for surf in range(no_surfs):
                         v_b = v_q
                         v_br = v_qr
                         v_q = 0
@@ -903,7 +866,7 @@ class OpticalSystem():
             v_a = 0
             v_y = 1
             v_w = 0
-            for surf in range(0, no_surfs):
+            for surf in range(no_surfs):
                 v_q = v_y
                 v_f = v_f_lst[surf]
                 v_y = v_y - v_e_lst[surf] * v_a
@@ -933,6 +896,37 @@ class OpticalSystem():
             self.pow_inr[0] = self.pow_inr_0
             self.surf_inr[0] = self.surf_inr_0
 
+    def adjust_lens_position(self):
+        """
+        絞りを含むレンズ位置の修正を行う
+        対応するBASICコード：*INM
+        """
+        self.adjust_position_pow(
+            self.interval_adj == IntervalAdjustment.FOCAL_LENGTH or
+            self.obj_dist_spec == ObjectDistance.INFINITY)
+
+        self.icn = 1
+
+        if self.interval_adj == IntervalAdjustment.FOCAL_LENGTH:
+            if self.input_dtype == InputDataType.SURFACE:
+                self.adjust_position_surf(True)
+        elif self.interval_adj == IntervalAdjustment.FOCAL_POSITION:
+            if (self.tracing_dir == TracingDirection.SCREEN_TO_APERTURE or
+                    self.tracing_dir ==
+                    TracingDirection.SCREEN_TO_APERTURE_EXT):
+                self.adjust_position_surf(True)
+                self.surf_inr_inf = self.surf_inr[self.adj_surf_inr_no]
+                if self.program_operation == ProgramOperation.NEW:
+                    print("物体無限遠で計算終了")
+            self.adjust_position_surf(
+                self.obj_dist_spec == ObjectDistance.INFINITY)
+        elif self.interval_adj == IntervalAdjustment.TELEPHOTO_POWER_0:
+            if self.input_dtype == InputDataType.SURFACE:
+                self.adjust_position_surf(
+                    self.obj_dist_spec == ObjectDistance.INFINITY)
+        elif self.interval_adj == IntervalAdjustment.FOCAL_POSITION_LENGTH:
+            pass
+
     def determine_sp_surf(self):
         """
         投影距離のレンズ側の起点をself.obj_dist_specの値により指定する
@@ -940,11 +934,11 @@ class OpticalSystem():
         """
         v_l = self.surf_inr[0]
         if self.obj_dist_spec == ObjectDistance.PRINCIPAL_POSITION:
-            self.lo = v_l + self.ho
+            self.dist_obj = v_l + self.prin_pos_obj
         elif self.obj_dist_spec == ObjectDistance.INFINITY:
-            self.lo = v_l
+            self.dist_obj = v_l
         else:
-            self.lo = v_l + self.surf_inr_delta
+            self.dist_obj = v_l + self.surf_inr_delta
         self.surf_inr_0 = v_l
         self.pow_inr_0 = (v_l + self.surf_inr_delta) / self.signed_ri_0
         self.pow_inr[0] = self.pow_inr_0
@@ -955,13 +949,13 @@ class OpticalSystem():
         対応するBASICコード：*L1C
         """
         if self.obj_dist_spec == ObjectDistance.PRINCIPAL_POSITION:
-            v_l = self.lo - self.ho
+            v_l = self.dist_obj - self.prin_pos_obj
         elif (self.obj_dist_spec == ObjectDistance.INFINITY and
               self.input_dtype == InputDataType.SURFACE
               ) or self.obj_dist_spec == ObjectDistance.FIRST_SURFACE:
-            v_l = self.lo
+            v_l = self.dist_obj
         else:
-            v_l = self.lo - self.surf_inr_delta
+            v_l = self.dist_obj - self.surf_inr_delta
         self.pow_inr_0 = (v_l + self.surf_inr_delta) / self.signed_ri_0
         self.signed_ri_0 = v_l
         self.pow_inr[0] = self.pow_inr_0
@@ -975,61 +969,73 @@ class OpticalSystem():
         if (
                 self.tracing_dir == TracingDirection.SOURCE_TO_APERTURE or
                 self.tracing_dir == TracingDirection.SOURCE_TO_APERTURE_EXT
-        ) and self.di > 0 and self.interval_adj == IntervalAdjustment.FOCAL_POSITION:
+        ) and self.dist_ap > 0 and self.interval_adj == IntervalAdjustment.FOCAL_POSITION:
             v_y, v_a, v_p = self.ray_tracing_surf(dist_infinity)
-            y0 = self.lnm * v_y / v_a - self.ds
+            y0 = self.signed_ri_main * v_y / v_a - self.dist_full
             x1 = self.surf_inr[self.adj_surf_inr_no]
             x0 = x1 * 1.1
             self.surf_inr[self.adj_surf_inr_no] = x0
-            self.surf_inr[self.no_surfs] = self.di - sum(self.surf_inr[:-1])
+            self.surf_inr[
+                self.no_surfs] = self.dist_ap - sum(self.surf_inr[:-1])
             while True:
                 v_y, v_a, v_p = self.ray_tracing_surf(dist_infinity)
-                y1 = self.lnm * v_y / v_a - self.ds
+                y1 = self.signed_ri_main * v_y / v_a - self.dist_full
                 x0, y0, x1, y1 = newton_step(x0, y0, x1, y1)
                 self.surf_inr[self.adj_surf_inr_no] = x0
-                self.surf_inr[
-                    self.no_surfs] = self.di - sum(self.surf_inr[:-1])
+                self.surf_inr[self.no_surfs] = self.dist_ap - sum(
+                    self.surf_inr[:-1])
                 if abs(y1) < 0.00001:
                     break
         else:
             v_y, v_a, v_p = self.ray_tracing_surf(dist_infinity)
-            y0 = v_p + self.lnm * v_y / v_a - self.ds if (
+            y0 = v_p + self.signed_ri_main * v_y / v_a - self.dist_full if (
                 self.interval_adj == IntervalAdjustment.FOCAL_POSITION
-            ) else v_a - self.rf
+            ) else v_a - self.focal_len_index
             x1 = self.surf_inr[self.adj_surf_inr_no]
             x0 = x1 * 1.1
             self.surf_inr[self.adj_surf_inr_no] = x0
             while True:
                 v_y, v_a, v_p = self.ray_tracing_surf(dist_infinity)
-                y1 = v_p + self.lnm * v_y / v_a - self.ds if (
+                y1 = v_p + self.signed_ri_main * v_y / v_a - self.dist_full if (
                     self.interval_adj == IntervalAdjustment.FOCAL_POSITION
-                ) else v_a - self.rf
+                ) else v_a - self.focal_len_index
                 x0, y0, x1, y1 = newton_step(x0, y0, x1, y1)
                 self.surf_inr[self.adj_surf_inr_no] = x0
                 if abs(y1) < 0.00001:
                     break
-        if self.interval_adj == IntervalAdjustment.TELEPHOTO_POWER_0:
-            self.surf_inr.append(self.ds - v_p)
+            if self.interval_adj == IntervalAdjustment.TELEPHOTO_POWER_0:
+                self.surf_inr.append(self.dist_full - v_p)
+        if self.adj_surf_inr_no == 1:
+            self.determine_sp_surf()
 
     def adjust_position_pow(self, dist_infinity):
         """
-        絞りを含むレンズ位置の修正を行う
+        パワー位置を修正して焦点距離を合わせる
         対応するBASICコード：*INM
         """
-        v_y, v_a, v_p = self.ray_tracing_pow(dist_infinity)
-        y0 = v_a - self.rf
-        x1 = self.pow_inr[self.adj_pow_inr_no]
-        x0 = x1 * 1.1
-        self.pow_inr[self.adj_pow_inr_no] = x0
-        while True:
+        if self.input_dtype != InputDataType.SURFACE and (
+                self.interval_adj == IntervalAdjustment.FOCAL_LENGTH or
+                self.interval_adj == IntervalAdjustment.TELEPHOTO_POWER_0):
             v_y, v_a, v_p = self.ray_tracing_pow(dist_infinity)
-            y1 = v_a - self.rf
-            x0, y0, x1, y1 = newton_step(x0, y0, x1, y1)
+            y0 = v_a - self.focal_len_index
+            x1 = self.pow_inr[self.adj_pow_inr_no]
+            x0 = x1 * 1.1
             self.pow_inr[self.adj_pow_inr_no] = x0
-            if abs(y1) < .00001:
-                break
-        if self.interval_adj == IntervalAdjustment.TELEPHOTO_POWER_0:
-            self.pow_inr.append(self.ds - v_p)
+            while True:
+                v_y, v_a, v_p = self.ray_tracing_pow(dist_infinity)
+                y1 = v_a - self.focal_len_index
+                x0, y0, x1, y1 = newton_step(x0, y0, x1, y1)
+                self.pow_inr[self.adj_pow_inr_no] = x0
+                if abs(y1) < .00001:
+                    break
+            if self.interval_adj == IntervalAdjustment.TELEPHOTO_POWER_0:
+                self.pow_inr.append(self.dist_full - v_p)
+        if (self.input_dtype == InputDataType.SURFACE and
+                self.interval_adj == IntervalAdjustment.NONE):
+            self.convert_surf_to_pow()
+        else:
+            self.convert_pow_to_surf()
+        self.determine_sp_pow()
 
     def ray_tracing_surf(self, dist_infinity):
         """
@@ -1039,10 +1045,9 @@ class OpticalSystem():
         o_y = 0 if dist_infinity else 1
         o_a = 1 if dist_infinity else 0
         o_p = self.surf_inr[0]
-        for index in range(
-                0, self.tel_no_surfs
-                if self.interval_adj == IntervalAdjustment.TELEPHOTO_POWER_0
-                else self.no_surfs):
+        for index in range(self.tel_no_surfs if self.interval_adj ==
+                           IntervalAdjustment.TELEPHOTO_POWER_0 else
+                           self.no_surfs):
             o_y = o_y - o_a * self.surf_inr[index] / self.signed_ri[index]
             o_a = o_a + o_y * self.diff_ri[index] * rev(self.surf_roc[index])
             o_p = o_p + self.surf_inr[index]
@@ -1056,10 +1061,9 @@ class OpticalSystem():
         o_y = 0 if dist_infinity else 1
         o_a = 1 if dist_infinity else 0
         o_p = -self.pow_inr[0]
-        for index in range(
-                0, self.tel_no_pows
-                if self.interval_adj == IntervalAdjustment.TELEPHOTO_POWER_0
-                else self.no_pows):
+        for index in range(self.tel_no_pows if self.interval_adj ==
+                           IntervalAdjustment.TELEPHOTO_POWER_0 else
+                           self.no_pows):
             o_y = o_y - o_a * self.pow_inr[index]
             o_a = o_a + o_y * self.pow_val[index]
             o_p = o_p + self.pow_inr[index]
@@ -1070,8 +1074,7 @@ class OpticalSystem():
         光学系内のsurf_noで示される場所が
         空気層か否かを返す関数
         """
-        return (self.ri[surf_no] == 1 or
-                (surf_no not in range(0, self.no_surfs)))
+        return (self.ri[surf_no] == 1 or (surf_no not in range(self.no_surfs)))
 
 
 class DataConsistenceError(Exception):
