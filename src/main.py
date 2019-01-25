@@ -113,6 +113,11 @@ class ProgramOperation(Enum):
     COPY = 4
 
 
+class MultipleRayOperation(Enum):
+    NONE = 0
+    MODIFY_DATA = 1
+
+
 class Direction(Enum):
     FORWARD = 1
     BACKWARD = -1
@@ -125,26 +130,26 @@ class OpticalSystem():
         self.read_data(config)
         self.check_data()
 
-        self.prepare_lens_eff_radius(config)
+        self.prepare_lens_eff_rad(config)
         self.prepare_ptlc(config)
-        self.prepare_axis_and_aspheric(config)
-        self.prepare_glass_and_ri(config)
+        self.prepare_axis_and_asph(config)
+        self.prepare_glass_and_rindex(config)
 
         if self.input_dtype == InputDataType.SURFACE:
             self.process_surf(config)
         elif self.input_dtype == InputDataType.POWER:
             self.process_pow(config)
         elif self.input_dtype == InputDataType.POWER_LIGHT:
-            self.process_pow_light(config)
+            self.process_pow_lit(config)
         elif self.input_dtype == InputDataType.GROUP:
-            self.process_group(config)
+            self.process_grp(config)
 
         self.determine_hole_and_max()
         self.determine_kind_of_lens()
 
         self.calculate_inverse()
 
-        self.adjust_lens_position()
+        self.adjust_lens_pos()
 
     def read_data(self, config):
         """
@@ -169,7 +174,7 @@ class OpticalSystem():
                 'Parameters',
                 'object distance specification',
                 fallback='to infinity'))
-        self.incident_light_range = IncidentLightRange(
+        self.incident_lit_range = IncidentLightRange(
             config.get(
                 'Parameters',
                 'incident light range definition',
@@ -186,7 +191,7 @@ class OpticalSystem():
             'System', 'number of surfaces', fallback=0)
         self.no_lenses = config.getint(
             'System', 'number of lenses', fallback=0)
-        self.no_groups = config.getint(
+        self.no_grps = config.getint(
             'System', 'number of groups', fallback=self.no_pows)
         self.adj_pow_inr_no = config.getint(
             'System', 'adjusting power interval number', fallback=0)
@@ -202,9 +207,9 @@ class OpticalSystem():
             'System', 'iris position', fallback=0) / self.scale
         self.fixed_lens_pos = config.getfloat(
             'System', 'fixed lens position', fallback=0) / self.scale
-        self.ap_radius = config.getfloat(
+        self.ap_rad = config.getfloat(
             'System', 'aperture radius', fallback=0) / self.scale
-        self.ls_radius = config.getfloat(
+        self.ls_rad = config.getfloat(
             'System', 'light source radius', fallback=0) / self.scale
         self.obj_dist = config.getfloat(
             'System', 'object distance', fallback=0) / self.scale
@@ -226,19 +231,19 @@ class OpticalSystem():
         self.tel_prin_pos_obj = config.getfloat(
             'Telephoto', 'principal position of object side',
             fallback=0) / self.scale + self.tel_system_dist
-        self.tel_prin_pos_proj = config.getfloat(
+        self.tel_prin_pos_prj = config.getfloat(
             'Telephoto', 'principal position of projection side',
             fallback=0) / self.scale + self.tel_system_dist
         self.tel_ap_disp = config.getfloat(
             'Telephoto', 'aperture for display', fallback=0) / self.scale
-        self.tel_ri_proj = config.getfloat(
+        self.tel_ri_prj = config.getfloat(
             'Telephoto', 'refractive index of projection region', fallback=0)
         self.tel_adj_inr_no = config.getint(
             'Telephoto', 'adjusting interval number', fallback=0)
 
         self.ls_file = config.get(
             'Light Source', 'light source file', fallback='')
-        self.ls_diff_radius = config.getfloat(
+        self.ls_diff_rad = config.getfloat(
             'Light Source', 'diffusion radius', fallback=0) / self.scale
         self.ls_no_filamets = config.getint(
             'Light Source', 'number of filaments', fallback=0)
@@ -258,17 +263,17 @@ class OpticalSystem():
             'Light Source', 'limit surface number', fallback=0)
 
         self.surfs_of_pow = get_intlist(config, 'System', 'surfaces of powers')
-        self.lens_radius = get_floatlist(config, 'System', 'lens radius')
+        self.lens_rad = get_floatlist(config, 'System', 'lens radius')
         self.projection_dist = get_floatlist(config, 'System',
                                              'projection distances')
         self.surf_inr_of_pow = get_floatlist(config, 'System',
                                              'surface intervals of powers')
         self.div_ratio = get_floatlist(config, 'System',
                                        'division ratios of powers')
-        self.split_param_1 = get_floatlist(config, 'System',
-                                           'split parameters first')
-        self.split_param_2 = get_floatlist(config, 'System',
-                                           'split parameters second')
+        self.split_param1 = get_floatlist(config, 'System',
+                                          'split parameters first')
+        self.split_param2 = get_floatlist(config, 'System',
+                                          'split parameters second')
 
     def check_data(self):
         """
@@ -286,43 +291,43 @@ class OpticalSystem():
             raise DataConsistenceError(
                 '[System: surface intervals of powers] is not void' +
                 ' though [System: input data type] is' +
-                ' "surface" and [System: interval adjustment] is "none"')
+                ' "surface" and [System: interval adjustment] is "none".')
 
-    def prepare_lens_eff_radius(self, config):
+    def prepare_lens_eff_rad(self, config):
         """
         configで指定されたデータファイルのlens effective radiusの項目を展開して
-        lens_eff_radiusリストを構成する
+        lens_eff_radリストを構成する
         対応するBASICコード：*IN6
         """
-        lens_eff_radius_data = get_floatlist(config, 'System',
-                                             'lens effective radius')
-        lens_eff_radius_dict = {
+        lens_eff_rad_data = get_floatlist(config, 'System',
+                                          'lens effective radius')
+        lens_eff_rad_dict = {
             i: {
                 'front': j,
                 'back': k
             }
-            for i, j, k in zip(* [iter(lens_eff_radius_data)] * 3)
+            for i, j, k in zip(* [iter(lens_eff_rad_data)] * 3)
         }
-        self.lens_eff_radius = []
+        self.lens_eff_rad = []
         for lens_no in range(self.no_lenses):
-            if lens_no not in lens_eff_radius_dict:
-                self.lens_eff_radius.append(self.lens_radius[lens_no])
-                self.lens_eff_radius.append(self.lens_radius[lens_no])
+            if lens_no not in lens_eff_rad_dict:
+                self.lens_eff_rad.append(self.lens_rad[lens_no])
+                self.lens_eff_rad.append(self.lens_rad[lens_no])
             else:
-                if (0 < lens_eff_radius_dict[lens_no]['front'] and
-                        lens_eff_radius_dict[lens_no]['front'] <
-                        self.lens_radius[lens_no]):
-                    self.lens_eff_radius.append(
-                        lens_eff_radius_dict[lens_no]['front'])
+                if (0 < lens_eff_rad_dict[lens_no]['front'] and
+                        lens_eff_rad_dict[lens_no]['front'] <
+                        self.lens_rad[lens_no]):
+                    self.lens_eff_rad.append(
+                        lens_eff_rad_dict[lens_no]['front'])
                 else:
-                    self.lens_eff_radius.append(self.lens_radius[lens_no])
-                if (0 < lens_eff_radius_dict[lens_no]['back'] and
-                        lens_eff_radius_dict[lens_no]['back'] <
-                        self.lens_radius[lens_no]):
-                    self.lens_eff_radius.append(
-                        lens_eff_radius_dict[lens_no]['back'])
+                    self.lens_eff_rad.append(self.lens_rad[lens_no])
+                if (0 < lens_eff_rad_dict[lens_no]['back'] and
+                        lens_eff_rad_dict[lens_no]['back'] <
+                        self.lens_rad[lens_no]):
+                    self.lens_eff_rad.append(
+                        lens_eff_rad_dict[lens_no]['back'])
                 else:
-                    self.lens_eff_radius.append(self.lens_radius[lens_no])
+                    self.lens_eff_rad.append(self.lens_rad[lens_no])
 
     def prepare_ptlc(self, config):
         """
@@ -339,7 +344,7 @@ class OpticalSystem():
             self.ptlc_val = config.get_floatlist(config, 'System',
                                                  'power to lens values')
 
-    def prepare_axis_and_aspheric(self, config):
+    def prepare_axis_and_asph(self, config):
         """
         configで指定されたデータファイルのsurfaces axis length ratiosと
         surfaces aspheric coefficientsの項目を読み込み、
@@ -349,11 +354,11 @@ class OpticalSystem():
         surf_axis_data = get_floatlist(config, 'System',
                                        'surface axis length ratios')
         surf_axis_dict = dict(zip(* [iter(surf_axis_data)] * 2))
-        surf_aspheric_data = get_floatlist(config, 'System',
-                                           'surfaces aspheric coefficients')
+        surf_asph_data = get_floatlist(config, 'System',
+                                       'surfaces aspheric coefficients')
         self.axis_ratio = []
         self.asph_coeff = []
-        aspheric_no = 0
+        asph_no = 0
         for surf_no in range(self.no_surfs):
             if surf_no not in surf_axis_dict:
                 self.axis_ratio.append(1)
@@ -366,12 +371,12 @@ class OpticalSystem():
                     asph_coeff_element = []
                     for index in range(4):
                         asph_coeff_element.append(
-                            surf_aspheric_data[aspheric_no * 4 + index] *
+                            surf_asph_data[asph_no * 4 + index] *
                             (self.scale / 100)**(index * 2 + 1))
                         self.asph_coeff.append(asph_coeff_element)
-                        aspheric_no += 1
+                        asph_no += 1
 
-    def prepare_glass_and_ri(self, config):
+    def prepare_glass_and_rindex(self, config):
         """
         予め用意されたGLASS_DATAおよび
         configで指定されたデータファイルのglass type namesの項目をもとに
@@ -423,17 +428,16 @@ class OpticalSystem():
         self.pow_val = pow_data[1::2]
         self.pow_inr_0 = self.pow_inr[0]
 
-    def process_pow_light(self, config):
+    def process_pow_lit(self, config):
         """
         configで指定されたデータファイルのpower and light dataの項目から
-        light_hgt_at_powリストとpow_inrリストを読み込み、
+        lit_hgt_at_powリストとpow_inrリストを読み込み、
         pow_valリストの値を計算する
         対応するBASICコード：*IN6, *EF2
         """
-        pow_light_data = get_floatlist(config, 'System',
-                                       'power and light data')
-        self.light_hgt_at_pow = pow_light_data[::2]
-        self.pow_inr = pow_light_data[1::2]
+        pow_lit_data = get_floatlist(config, 'System', 'power and light data')
+        self.lit_hgt_at_pow = pow_lit_data[::2]
+        self.pow_inr = pow_lit_data[1::2]
         surf_no = 0
         self.pow_val = []
         for pow_no in range(self.no_pows):
@@ -442,93 +446,90 @@ class OpticalSystem():
                     self.pow_inr[pow_no] == 0):
                 self.pow_val.append(0)
             else:
-                self.pow_val.append((
-                    (self.light_hgt_at_pow[pow_no + 1] - self.
-                     light_hgt_at_pow[pow_no +
-                                      2]) * rev(self.pow_inr[pow_no + 1]) -
-                    (self.light_hgt_at_pow[pow_no] - self.
-                     light_hgt_at_pow[pow_no + 1]) * rev(self.pow_inr[pow_no]))
-                                    / self.light_hgt_at_pow[pow_no + 1])
+                self.pow_val.append(
+                    ((self.lit_hgt_at_pow[pow_no +
+                                          1] - self.lit_hgt_at_pow[pow_no + 2]
+                      ) * rev(self.pow_inr[pow_no + 1]) -
+                     (self.lit_hgt_at_pow[pow_no] - self.
+                      lit_hgt_at_pow[pow_no + 1]) * rev(self.pow_inr[pow_no]))
+                    / self.lit_hgt_at_pow[pow_no + 1])
                 surf_no += self.surfs_of_pow[pow_no]
-        self.pow_inr_0 = self.group_inr[0]
+        self.pow_inr_0 = self.grp_inr[0]
 
-    def process_group(self, config):
+    def process_grp(self, config):
         """
         configで指定されたデータファイルのgroup dataの項目から
-        light_hgt_at_groupリストとgroup_inrリストを読み込み、
+        lit_hgt_at_grpリストとgrp_inrリストを読み込み、
         split patternsの項目から
         split_patternリストを読み込む。
-        group_valリストとpow_inrリストとpow_valリストを計算する
+        grp_valリストとpow_inrリストとpow_valリストを計算する
         対応するBASICコード：*IN6, *EF3
         """
-        group_data = get_floatlist(config, 'System', 'group data')
-        self.light_hgt_at_group = group_data[::2]
-        self.group_inr = group_data[1::2]
+        grp_data = get_floatlist(config, 'System', 'group data')
+        self.lit_hgt_at_grp = grp_data[::2]
+        self.grp_inr = grp_data[1::2]
         self.split_pattern = [
             SplitPattern(e.strip())
             for e in get_stringlist(config, 'System', 'split patterns')
         ]
 
-        # light_hgt_at_groupおよびgroup_inrからgroup_valを計算
+        # lit_hgt_at_grpおよびgrp_inrからgrp_valを計算
         surf_no = 0
         pow_no = 0
-        self.group_val = []
-        for group_no in range(self.no_groups):
-            if (self.split_pattern[group_no] == SplitPattern.NONE and
+        self.grp_val = []
+        for grp_no in range(self.no_grps):
+            if (self.split_pattern[grp_no] == SplitPattern.NONE and
                     self.rindex_diff[surf_no] == 0 and
-                    self.surfs_of_pow[pow_no] == 1 or self.group_inr == 0):
-                self.group_val.append(0)
+                    self.surfs_of_pow[pow_no] == 1 or self.grp_inr == 0):
+                self.grp_val.append(0)
             else:
-                self.group_val.append(
-                    ((self.light_hgt_at_group[group_no + 1] - self.
-                      light_hgt_at_group[group_no + 2]
-                      ) * rev(self.group_inr[group_no + 1]) -
-                     (self.light_hgt_at_group[group_no] - self.
-                      light_hgt_at_group[group_no +
-                                         1]) * rev(self.group_inr[group_no])) /
-                    self.light_hgt_at_group[group_no + 1])
+                self.grp_val.append(
+                    ((self.lit_hgt_at_grp[grp_no +
+                                          1] - self.lit_hgt_at_grp[grp_no + 2]
+                      ) * rev(self.grp_inr[grp_no + 1]) -
+                     (self.lit_hgt_at_grp[grp_no] - self.
+                      lit_hgt_at_grp[grp_no + 1]) * rev(self.grp_inr[grp_no]))
+                    / self.lit_hgt_at_grp[grp_no + 1])
                 pow_no += 1
                 surf_no += self.surfs_of_pow[pow_no]
-            if self.split_pattern[group_no] != SplitPattern.NONE:
+            if self.split_pattern[grp_no] != SplitPattern.NONE:
                 pow_no += 1
                 surf_no += self.surfs_of_pow[pow_no]
 
-        # group_inrおよびgroup_valからpow_inrとpow_valへ変換
+        # grp_inrおよびgrp_valからpow_inrとpow_valへ変換
         pow_no = 0
         delta = 0
         self.pow_inr = []
         self.pow_val = []
-        for group_no in range(self.no_groups):
-            if self.split_pattern[group_no] == SplitPattern.NONE:
-                self.pow_inr.append(self.group_inr[group_no] - delta)
-                self.pow_val.append(self.group_val[group_no])
+        for grp_no in range(self.no_grps):
+            if self.split_pattern[grp_no] == SplitPattern.NONE:
+                self.pow_inr.append(self.grp_inr[grp_no] - delta)
+                self.pow_val.append(self.grp_val[grp_no])
                 delta = 0
                 pow_no += 1
             else:
-                v_u = self.spliv_param_1[group_no]
-                v_v = self.spliv_param_2[group_no]
-                v_f = self.group_val[group_no]
-                v_g = self.group_inr[group_no]
-                if self.split_pattern[group_no] == SplitPattern.FIRST_INTERVAL:
+                v_u = self.split_param1[grp_no]
+                v_v = self.split_param2[grp_no]
+                v_f = self.grp_val[grp_no]
+                v_g = self.grp_inr[grp_no]
+                if self.split_pattern[grp_no] == SplitPattern.FIRST_INTERVAL:
                     self.pow_inr.append(v_g - v_v * (v_f - v_u) /
                                         (1 - v_u * v_v) / v_f - delta)
                     self.pow_val.append(v_u)
                     self.pow_inr.append(v_v)
                     self.pow_val.append((v_f - v_u) / (1 - v_u * v_v))
-                elif self.split_pattern[
-                        group_no] == SplitPattern.LAST_INTERVAL:
+                elif self.split_pattern[grp_no] == SplitPattern.LAST_INTERVAL:
                     self.pow_inr.append(v_g - (v_u * v_v) / v_f - delta)
                     self.pow_val.append((v_f - v_u) / (1 - v_u * v_v))
                     self.pow_inr.append(v_v)
                     self.pow_val.append(v_u)
-                elif self.split_pattern[
-                        group_no] == SplitPattern.RATIO_INTERVAL:
+                elif self.split_pattern[grp_no] == SplitPattern.RATIO_INTERVAL:
                     self.pow_inr.append(
                         v_g - v_v * v_u / v_f * fn_p(v_u, v_f, v_v) - delta)
                     self.pow_val.append(fn_p(v_u, v_f, v_v))
                     self.pow_inr.append(v_v)
                     self.pow_val.append(v_u * fn_p(v_u, v_f, v_v))
-                elif self.split_pattern[group_no] == SplitPattern.FIRST_LAST:
+                elif self.split_pattern[grp_no] == SplitPattern.FIRST_LAST:
                     self.pow_inr.append(v_g - (v_u + v_v - v_f) / v_v - delta)
                     self.pow_val.append(v_u)
                     self.pow_inr.append((v_u + v_v - v_f) / v_u / v_v)
@@ -540,16 +541,16 @@ class OpticalSystem():
 
     def determine_hole_and_max(self):
         """
-        lens_eff_radiusからhole_valueを
-        lens_radiusとap_radiusからmax_radiusを
+        lens_eff_radからhole_valueを
+        lens_radとap_radからmax_radを
         それぞれ決定する
         対応するBASICコード：*IN6
         """
-        self.hole_value = self.lens_eff_radius[self.no_lenses * 2 - 1]**2 if (
+        self.hole_value = self.lens_eff_rad[self.no_lenses * 2 - 1]**2 if (
             self.tracing_dir == TracingDirection.SCREEN_TO_APERTURE_EXT and
-            self.lens_eff_radius[self.no_lenses * 2 - 1] <
-            self.lens_radius[self.no_lenses - 1]) else 0
-        self.max_radius = max(self.lens_radius + [self.ap_radius])
+            self.lens_eff_rad[self.no_lenses * 2 -
+                              1] < self.lens_rad[self.no_lenses - 1]) else 0
+        self.max_rad = max(self.lens_rad + [self.ap_rad])
 
     def determine_kind_of_lens(self):
         """
@@ -557,7 +558,7 @@ class OpticalSystem():
         対応するBASICコード：*DRV
         """
         self.lens_index = []
-        self.surf_eff_radius = []
+        self.surf_eff_rad = []
         self.kind_of_lens = []
         surf_no = 0
         lens_no = 0
@@ -566,7 +567,8 @@ class OpticalSystem():
                 self.adj_surf_inr_no = surf_no
             if (self.adj_pow_inr_no == 0 and self.adj_surf_inr_no == surf_no):
                 self.adj_pow_inr_no = pow_no
-            for surf in range(surf_no, surf_no + self.surfs_of_pow[pow_no]):
+            no_surfs = self.surfs_of_pow[pow_no]
+            for surf in range(surf_no, surf_no + no_surfs):
                 self.lens_index.append(lens_no)
                 if self.is_air(surf) and self.is_air(surf + 1):
                     if (self.direction[surf].value ==
@@ -583,26 +585,34 @@ class OpticalSystem():
                         self.kind_of_lens.append(KindOfLens.IRIS)
                     self.surf_roc[surf] = 0
                     self.axis_ratio[surf] = 1
-                    self.surf_eff_radius.append(
-                        self.lens_eff_radius[lens_no * 2])
+                    self.surf_eff_rad.append(self.lens_eff_rad[lens_no * 2])
                     lens_no += 1
                 elif self.is_air(surf) and not self.is_air(surf + 1):
                     self.kind_of_lens.append(KindOfLens.SINGLE_LENS)
-                    self.surf_eff_radius.append(
-                        self.lens_eff_radius[lens_no * 2])
+                    self.surf_eff_rad.append(self.lens_eff_rad[lens_no * 2])
                     lens_no += 1
                 elif not self.is_air(surf) and not self.is_air(surf + 1):
                     self.kind_of_lens[-1] = KindOfLens.COMBINED_LENS_FRONT
                     self.kind_of_lens.append(KindOfLens.COMBINED_LENS_BACK)
-                    self.surf_eff_radius.append(
-                        min(self.lens_eff_radius[lens_no * 2 - 1],
-                            self.lens_eff_radius[lens_no * 2]))
+                    self.surf_eff_rad.append(
+                        min(self.lens_eff_rad[lens_no * 2 - 1],
+                            self.lens_eff_rad[lens_no * 2]))
                     lens_no += 1
                 else:
-                    self.surf_eff_radius.append(
-                        self.lens_eff_radius[lens_no * 2 - 1])
+                    self.surf_eff_rad.append(
+                        self.lens_eff_rad[lens_no * 2 - 1])
+                if (no_surfs == 1 or
+                    (no_surfs == 2 and self.rindex[surf_no + 1] == 1) or
+                    (no_surfs == 3 and
+                     self.rindex_diff[surf_no] * self.rindex_diff[surf_no +
+                                                                  2] == 0)):
+                    self.div_ratio[pow_no] = 0
             surf_no = surf_no + self.surfs_of_pow[pow_no]
         self.surf_inr_0 = self.surf_inr[0]
+        self.surf_eff_rad_0 = self.surf_eff_rad[0]
+        if surf_no != self.no_surfs or lens_no != self.no_lenses:
+            raise DataConsistenceError(
+                "Number of surfaces/lenses doesn't match.")
         if self.tracing_dir == TracingDirection.SCREEN_TO_APERTURE_EXT:
             self.kind_of_lens.append(KindOfLens.APERTURE)
         elif (self.tracing_dir == TracingDirection.SOURCE_TO_APERTURE or
@@ -618,21 +628,21 @@ class OpticalSystem():
         CAL_POINTS = [.4, .6, .8, 1, 1.05],
         CAL_POINTS_EQUAL_AREA = [.020, .316, .548, .707, .837, .949, 1]
 
-        self.inverse = {}
+        self.inv = {}
         tmp = []
         for index in range(4, 17, 2):
             tmp.append(sum([e**index for e in CAL_POINTS]))
-        self.inverse['even'] = np.linalg.inv(
+        self.inv['even'] = np.linalg.inv(
             np.matrix([[tmp[i + j] for i in range(3)] for j in range(3)]))
         tmp = []
         for index in range(2, 11):
             tmp.append(sum([e**index for e in CAL_POINTS[::-1] + CAL_POINTS]))
-        self.inverse['odd'] = np.linalg.inv(
+        self.inv['odd'] = np.linalg.inv(
             np.matrix([[tmp[i + j] for i in range(4)] for j in range(4)]))
         tmp = []
         for index in range(4, 17, 2):
             tmp.append(sum([e**index for e in CAL_POINTS_EQUAL_AREA]))
-        self.inverse['equal_area'] = np.linalg.inv(
+        self.inv['equal_area'] = np.linalg.inv(
             np.matrix([[tmp[i + j] for i in range(3)] for j in range(3)]))
 
     def convert_surf_to_pow(self):
@@ -841,16 +851,16 @@ class OpticalSystem():
                                                 surf] <= 0 and self.rindex[surf_no
                                                                            +
                                                                            surf] > 1:
-                            v_h = self.lens_radius[lens_no]
+                            v_h = self.lens_rad[lens_no]
                             v_o = -self.surface_inr_of_pow[surf_no + surf]
                             if v_o == 0:
                                 v_o = math.floor(1.2 * (
                                     v_h * self.scale)**0.7) / 10 / self.scale
                             if v_qr <= v_br:
-                                v_x = self.lens_radius[lens_no * 2 -
-                                                       1] if 0 < v_b else v_h
-                                v_y = self.lens_radius[lens_no *
-                                                       2] if 0 > v_q else v_h
+                                v_x = self.lens_rad[lens_no * 2 -
+                                                    1] if 0 < v_b else v_h
+                                v_y = self.lens_rad[lens_no *
+                                                    2] if 0 > v_q else v_h
                                 v_o = v_o + v_b - v_b * math.sqrt(
                                     abs(1 -
                                         (v_x * v_br / self.
@@ -898,12 +908,12 @@ class OpticalSystem():
             self.pow_inr[0] = self.pow_inr_0
             self.surf_inr[0] = self.surf_inr_0
 
-    def adjust_lens_position(self):
+    def adjust_lens_pos(self):
         """
         絞りを含むレンズ位置の修正を行う
         対応するBASICコード：*INM
         """
-        self.adjust_position_pow(
+        self.adjust_pos_pow(
             self.interval_adj == IntervalAdjustment.FOCAL_LENGTH or
             self.obj_dist_spec == ObjectDistance.INFINITY)
 
@@ -911,22 +921,36 @@ class OpticalSystem():
 
         if self.interval_adj == IntervalAdjustment.FOCAL_LENGTH:
             if self.input_dtype == InputDataType.SURFACE:
-                self.adjust_position_surf(True)
+                self.adjust_pos_surf(True)
         elif self.interval_adj == IntervalAdjustment.FOCAL_POSITION:
             if (self.tracing_dir == TracingDirection.SCREEN_TO_APERTURE or
                     self.tracing_dir ==
                     TracingDirection.SCREEN_TO_APERTURE_EXT):
-                self.adjust_position_surf(True)
-                self.surf_inr_inf = self.surf_inr[self.adj_surf_inr_no]
+                self.adjust_pos_surf(True)
+                self.surf_inr_adj0 = self.surf_inr[self.adj_surf_inr_no]
                 if self.program_operation == ProgramOperation.NEW:
                     print("物体無限遠で計算終了")
-            self.adjust_position_surf(
-                self.obj_dist_spec == ObjectDistance.INFINITY)
+            self.adjust_pos_surf(self.obj_dist_spec == ObjectDistance.INFINITY)
         elif self.interval_adj == IntervalAdjustment.TELEPHOTO_POWER_0:
             if self.input_dtype == InputDataType.SURFACE:
-                self.adjust_position_surf(
+                self.adjust_pos_surf(
                     self.obj_dist_spec == ObjectDistance.INFINITY)
         elif self.interval_adj == IntervalAdjustment.FOCAL_POSITION_LENGTH:
+            self.pkv = sum(self.surf_inr[i]
+                           for i in range(2, self.adj_surf_inr_no - 1))
+            self.adjust_pos_surf_next(True)
+            self.adjust_surf_inr()
+            self.surf_inr_adj0 = self.surf_inr[self.adj_surf_inr_no]
+            self.surf_inr_adj1 = self.surf_inr[self.adj_surf_inr_no + 1]
+            if self.program_operation == ProgramOperation.NEW:
+                print("物体無限遠で計算終了")
+            if self.mult_ray_operation == MultipleRayOperation.NONE:
+                v_y, v_a, v_p = self.ray_tracing_surf(
+                    self.obj_dist_spec == ObjectDistance.INFINITY)
+                self.surf_inr[1] = (self.dist_focal + self.surf_inr[1] - v_p -
+                                    self.rindex_sgd_prj * v_y / v_a)
+                self.adjust_surf_inr()
+        elif self.interval_adj == IntervalAdjustment.FOCAL_POSITION_SEPARATED:
             pass
 
     def determine_base_point_surf(self):
@@ -963,7 +987,19 @@ class OpticalSystem():
         self.pow_inr[0] = self.pow_inr_0
         self.rindex_sgd[0] = self.rindex_sgd_0
 
-    def adjust_position_surf(self, dist_infinity):
+    def adjust_surf_inr(self):
+        """
+        調整対象の屈折面間隔の値を修正する
+        対応するBASICコード：*LDK
+        """
+        if self.dist_iris != 0:
+            v_o = self.dist_focal - self.surf_inr[1] - self.pkv - self.dist_iris
+            self.surf_inr[self.adj_surf_inr_no +
+                          1] = (self.surf_inr[self.adj_surf_inr_no] +
+                                self.surf_inr[self.adj_surf_inr_no + 1] - v_o)
+            self.surf_inr[self.adj_surf_inr_no] = v_o
+
+    def adjust_pos_surf(self, dist_infinity):
         """
         屈折面位置を修正して焦点距離を合わせる
         対応するBASICコード：*DCL
@@ -973,7 +1009,7 @@ class OpticalSystem():
                 self.tracing_dir == TracingDirection.SOURCE_TO_APERTURE_EXT
         ) and self.dist_iris > 0 and self.interval_adj == IntervalAdjustment.FOCAL_POSITION:
             v_y, v_a, v_p = self.ray_tracing_surf(dist_infinity)
-            y0 = self.rindex_sgd_main * v_y / v_a - self.dist_focal
+            y0 = self.rindex_sgd_prj * v_y / v_a - self.dist_focal
             x1 = self.surf_inr[self.adj_surf_inr_no]
             x0 = x1 * 1.1
             self.surf_inr[self.adj_surf_inr_no] = x0
@@ -981,7 +1017,7 @@ class OpticalSystem():
                 self.no_surfs] = self.dist_iris - sum(self.surf_inr[:-1])
             while True:
                 v_y, v_a, v_p = self.ray_tracing_surf(dist_infinity)
-                y1 = self.rindex_sgd_main * v_y / v_a - self.dist_focal
+                y1 = self.rindex_sgd_prj * v_y / v_a - self.dist_focal
                 x0, y0, x1, y1 = newton_step(x0, y0, x1, y1)
                 self.surf_inr[self.adj_surf_inr_no] = x0
                 self.surf_inr[
@@ -990,7 +1026,7 @@ class OpticalSystem():
                     break
         else:
             v_y, v_a, v_p = self.ray_tracing_surf(dist_infinity)
-            y0 = v_p + self.rindex_sgd_main * v_y / v_a - self.dist_focal if (
+            y0 = v_p + self.rindex_sgd_prj * v_y / v_a - self.dist_focal if (
                 self.interval_adj == IntervalAdjustment.FOCAL_POSITION
             ) else v_a - self.focal_len_index
             x1 = self.surf_inr[self.adj_surf_inr_no]
@@ -998,7 +1034,7 @@ class OpticalSystem():
             self.surf_inr[self.adj_surf_inr_no] = x0
             while True:
                 v_y, v_a, v_p = self.ray_tracing_surf(dist_infinity)
-                y1 = v_p + self.rindex_sgd_main * v_y / v_a - self.dist_focal if (
+                y1 = v_p + self.rindex_sgd_prj * v_y / v_a - self.dist_focal if (
                     self.interval_adj == IntervalAdjustment.FOCAL_POSITION
                 ) else v_a - self.focal_len_index
                 x0, y0, x1, y1 = newton_step(x0, y0, x1, y1)
@@ -1010,7 +1046,7 @@ class OpticalSystem():
         if self.adj_surf_inr_no == 1:
             self.determine_base_point_surf()
 
-    def adjust_position_surf_next(self, dist_infinity):
+    def adjust_pos_surf_next(self, dist_infinity):
         """
         屈折面位置を修正して焦点距離を合わせる
         対応するBASICコード：*DCM
@@ -1035,8 +1071,11 @@ class OpticalSystem():
                                                  1] * x0 / x1
             if abs(y1) < 0.00001:
                 break
+        self.surf_inr_fp1 = (self.dist_focal + self.surf_inr[1] - v_p -
+                             self.rindex_sgd_prj * v_y / v_a)
+        self.surf_inr[1] = self.surf_inr_fp1
 
-    def adjust_position_pow(self, dist_infinity):
+    def adjust_pos_pow(self, dist_infinity):
         """
         パワー位置を修正して焦点距離を合わせる
         対応するBASICコード：*INM
