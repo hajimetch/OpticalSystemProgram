@@ -9,7 +9,7 @@
 | LS()   | self.direction[]        | 光線方向                                                     |
 | LA()   | self.dispersion[]       | ガラスの分散率の逆数                                         |
 | DS     | self.dist_focal         | 第１面から結像面までの距離(焦点位置)                         |
-| DI     | self.dist_iris          | 中間絞り(アパチャ)から結像面までの距離                       |
+| DI     | self.dist_iris          | 中間絞り(アパチャ)から結像面までの距離(DI=0の場合を除く)     |
 | LO     | self.dist_obj           | 物体までの距離                                               |
 | FR()   | self.div_ratio[]        | パワーを分割する場合の分割比(第２パワー/第１パワー)          |
 | RF     | self.focal_len_index    | LNM/(指定焦点距離/SF)                                        |
@@ -19,7 +19,7 @@
 | LMD    | self.hole_value         | 光源反射鏡の中心穴半径の自乗またはバルブ半径の自乗           |
 | ICN    | self.icn                |                                                              |
 | EF     | self.input_dtype        | 初期データ入力条件                                           |
-| IDA    | self.interval_adj       | 読み込みデータの調整方法指定                                 |
+| IDA    | self.inr_adj            | 読み込みデータの調整方法指定                                 |
 | C2D(,) | self.inv['equal_area']  | 収差曲線の面積を考慮した近似多項式の係数を求めるための逆行列 |
 | C0D(,) | self.inv['even']        | 収差曲線の偶関数の近似多項式の係数を求めるための逆行列       |
 | C1D(,) | self.inv['odd']         | 収差曲線の奇関数の近似多項式の係数を求めるための逆行列       |
@@ -66,3 +66,9 @@
 | KSD()  | self.surfs_of_pow[]     | 各パワーを構成する屈折面の数                                 |
 | KN     | self.tel_no_surfs       | 望遠系の屈折面数                                             |
 | ITR    | self.tracing_dir        | 光線追跡方向                                                 |
+| LCT    | self.dist_index         | 物体距離のインデックス(LCT=0の場合を除く)                    |
+| L      | self.dist_obj_real      | 計算対象の物体距離(実長)                                     |
+| LCT=0  | self.single_dist()      | 指定する物体距離が単一の場合(LCT=0のとき)にTrueを返す        |
+| DI<>0  | self.iris_exists()      | 光学系に絞りがある場合(DI<>0のとき)にTrueを返す              |
+| LV()   | self.dist_lst[]         | 物体距離データリスト                                         |
+|        |                         |                                                              |
