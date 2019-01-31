@@ -123,7 +123,7 @@ class OpticalSystem():
         self.start_dt = datetime.now()
 
         self.read_data(config)
-        self.read_list_data(config)
+        self.read_lst_data(config)
         self.check_data()
 
         self.prepare_lens_eff_rad(config)
@@ -143,7 +143,7 @@ class OpticalSystem():
         self.determine_hole_and_max()
         self.determine_kind_of_lens()
 
-        self.set_dist_obj()
+        self.set_obj_dist()
 
         self.calculate_inv()
 
@@ -197,11 +197,11 @@ class OpticalSystem():
             'System', 'adjusting surface interval number', fallback=0)
         self.adj_inr_no_bhnd = config.getint(
             'System', 'adjusting interval number behind', fallback=0)
-        self.dist_focal = config.getfloat(
+        self.focal_pos = config.getfloat(
             'System', 'focal position', fallback=0) / self.scale
         self.focal_len = config.getfloat(
             'System', 'focal length', fallback=0) / self.scale
-        self.dist_iris = config.getfloat(
+        self.iris_pos = config.getfloat(
             'System', 'iris position', fallback=0) / self.scale
         self.fixed_lens_pos = config.getfloat(
             'System', 'fixed lens position', fallback=0) / self.scale
@@ -259,7 +259,7 @@ class OpticalSystem():
         self.ls_limit_no = config.getint(
             'Light Source', 'limit surface number', fallback=0)
 
-    def read_list_data(self, config):
+    def read_lst_data(self, config):
         """
         configで指定されたデータファイルから、光学系のデータを読み込む
         リスト形式のデータを読み、所定の要素数に初期化する
@@ -284,8 +284,8 @@ class OpticalSystem():
         self.split_param2 = pad(
             get_floatlist(config, 'System', 'split parameters second'), 0,
             self.no_grps)
-        self.proj_dist = get_floatlist(config, 'System',
-                                       'projection distances')
+        self.obj_dist_lst = get_floatlist(config, 'System',
+                                          'object distance list')
 
     def check_data(self):
         """
@@ -434,6 +434,10 @@ class OpticalSystem():
             self.telephoto == Telephoto.TRUE) else self.no_surfs + 2
         self.rindex = pad(rindex, GLASS_DATA['AIR']['nd'], no_rindex)
         self.rindex_diff = pad(rindex_diff, 0, no_rindex)
+        self.rindex_sgd_0 = self.rindex_sgd[0]
+        self.rindex_sgd_end = self.rindex_sgd[self.no_surfs]
+        self.rindex_sgd_prj = self.rindex_sgd_end
+        self.focal_len_index = self.rindex_sgd_prj * rev(self.focal_len)
 
     def process_surf(self, config):
         """
@@ -651,21 +655,21 @@ class OpticalSystem():
             self.kind_of_lens.append(KindOfLens.LIGHT_SOURCE)
             self.kind_of_lens.append(KindOfLens.APERTURE)
 
-    def set_dist_obj(self):
+    def set_obj_dist(self):
         """
         計算対象の物体距離等を設定する
         対応するBASICコード：*LSET
         """
-        if not self.single_dist():
-            self.dist_obj_real = self.proj_dist(self.dist_index)
+        if self.inr_adj == IntervalAdjustment.FOCAL_POSITION_SEPARATED:
+            self.obj_dist_real = self.obj_dist_lst(self.dist_index)
         if (self.input_dtype != InputDataType.SURFACE and
                 self.input_dtype != InputDataType.POWER or
                 self.inr_adj != IntervalAdjustment.NONE) and (
                     self.obj_dist_spec == ObjectDistance.INFINITY or
                     self.obj_dist_spec == ObjectDistance.FIRST_POWER):
-            self.dist_obj = self.pow_inr_0 * self.rindex_sgd_0
+            self.obj_dist = self.pow_inr_0 * self.rindex_sgd_0
         else:
-            self.dist_obj = self.dist_obj_real / self.scale
+            self.obj_dist = self.obj_dist_real / self.scale
 
     def calculate_inv(self):
         """
@@ -965,31 +969,31 @@ class OpticalSystem():
         絞りを含むレンズ位置の修正を行う
         対応するBASICコード：*INM
         """
-        self.adjust_pos_pow(self.inr_adj == IntervalAdjustment.FOCAL_LENGTH or
+        self.adjust_pow_pos(self.inr_adj == IntervalAdjustment.FOCAL_LENGTH or
                             self.obj_dist_spec == ObjectDistance.INFINITY)
 
         self.icn = 1
 
         if self.inr_adj == IntervalAdjustment.FOCAL_LENGTH:
             if self.input_dtype == InputDataType.SURFACE:
-                self.adjust_pos_surf(True)
+                self.adjust_surf_pos(True)
         elif self.inr_adj == IntervalAdjustment.FOCAL_POSITION:
             if (self.tracing_dir == TracingDirection.SCREEN_TO_APERTURE or
                     self.tracing_dir ==
                     TracingDirection.SCREEN_TO_APERTURE_EXT):
-                self.adjust_pos_surf(True)
+                self.adjust_surf_pos(True)
                 self.surf_inr_adj0 = self.surf_inr[self.adj_surf_inr_no]
                 if self.program_operation == ProgramOperation.NEW:
                     print("物体無限遠で計算終了")
-            self.adjust_pos_surf(self.obj_dist_spec == ObjectDistance.INFINITY)
+            self.adjust_surf_pos(self.obj_dist_spec == ObjectDistance.INFINITY)
         elif self.inr_adj == IntervalAdjustment.TELEPHOTO_POWER_0:
             if self.input_dtype == InputDataType.SURFACE:
-                self.adjust_pos_surf(
+                self.adjust_surf_pos(
                     self.obj_dist_spec == ObjectDistance.INFINITY)
         elif self.inr_adj == IntervalAdjustment.FOCAL_POSITION_LENGTH:
             self.pkv = sum(self.surf_inr[i]
                            for i in range(2, self.adj_surf_inr_no - 1))
-            self.adjust_pos_surf_beta(True)
+            self.adjust_surf_pos_beta(True)
             self.adjust_surf_inr()
             self.surf_inr_adj0 = self.surf_inr[self.adj_surf_inr_no]
             self.surf_inr_adj1 = self.surf_inr[self.adj_surf_inr_no + 1]
@@ -998,7 +1002,7 @@ class OpticalSystem():
             if self.tracing_no == TracingNumber.SINGLE:
                 v_y, v_a, v_p = self.ray_tracing_surf(
                     self.obj_dist_spec == ObjectDistance.INFINITY)
-                self.surf_inr[1] = (self.dist_focal + self.surf_inr[1] - v_p -
+                self.surf_inr[1] = (self.focal_pos + self.surf_inr[1] - v_p -
                                     self.rindex_sgd_prj * v_y / v_a)
                 self.adjust_surf_inr()
         elif self.inr_adj == IntervalAdjustment.FOCAL_POSITION_SEPARATED:
@@ -1011,11 +1015,11 @@ class OpticalSystem():
         """
         v_l = self.surf_inr[0]
         if self.obj_dist_spec == ObjectDistance.PRINCIPAL_POSITION:
-            self.dist_obj = v_l + self.prin_pos_obj
+            self.obj_dist = v_l + self.prin_pos_obj
         elif self.obj_dist_spec == ObjectDistance.INFINITY:
-            self.dist_obj = v_l
+            self.obj_dist = v_l
         else:
-            self.dist_obj = v_l + self.surf_inr_delta
+            self.obj_dist = v_l + self.surf_inr_delta
         self.surf_inr_0 = v_l
         self.pow_inr_0 = (v_l + self.surf_inr_delta) / self.rindex_sgd_0
         self.pow_inr[0] = self.pow_inr_0
@@ -1026,13 +1030,13 @@ class OpticalSystem():
         対応するBASICコード：*L1C
         """
         if self.obj_dist_spec == ObjectDistance.PRINCIPAL_POSITION:
-            v_l = self.dist_obj - self.prin_pos_obj
+            v_l = self.obj_dist - self.prin_pos_obj
         elif (self.obj_dist_spec == ObjectDistance.INFINITY and
               self.input_dtype == InputDataType.SURFACE
               ) or self.obj_dist_spec == ObjectDistance.FIRST_SURFACE:
-            v_l = self.dist_obj
+            v_l = self.obj_dist
         else:
-            v_l = self.dist_obj - self.surf_inr_delta
+            v_l = self.obj_dist - self.surf_inr_delta
         self.pow_inr_0 = (v_l + self.surf_inr_delta) / self.rindex_sgd_0
         self.rindex_sgd_0 = v_l
         self.pow_inr[0] = self.pow_inr_0
@@ -1044,13 +1048,13 @@ class OpticalSystem():
         対応するBASICコード：*LDK
         """
         if self.iris_exists():
-            v_o = self.dist_focal - self.surf_inr[1] - self.pkv - self.dist_iris
+            v_o = self.focal_pos - self.surf_inr[1] - self.pkv - self.iris_pos
             self.surf_inr[self.adj_surf_inr_no +
                           1] = (self.surf_inr[self.adj_surf_inr_no] +
                                 self.surf_inr[self.adj_surf_inr_no + 1] - v_o)
             self.surf_inr[self.adj_surf_inr_no] = v_o
 
-    def adjust_pos_surf(self, dist_infinity):
+    def adjust_surf_pos(self, dist_infinity):
         """
         屈折面位置を修正して焦点距離を合わせる
         対応するBASICコード：*DCL
@@ -1058,26 +1062,26 @@ class OpticalSystem():
         if (
                 self.tracing_dir == TracingDirection.SOURCE_TO_APERTURE or
                 self.tracing_dir == TracingDirection.SOURCE_TO_APERTURE_EXT
-        ) and self.dist_iris > 0 and self.inr_adj == IntervalAdjustment.FOCAL_POSITION:
+        ) and self.iris_pos > 0 and self.inr_adj == IntervalAdjustment.FOCAL_POSITION:
             v_y, v_a, v_p = self.ray_tracing_surf(dist_infinity)
-            y0 = self.rindex_sgd_prj * v_y / v_a - self.dist_focal
+            y0 = self.rindex_sgd_prj * v_y / v_a - self.focal_pos
             x1 = self.surf_inr[self.adj_surf_inr_no]
             x0 = x1 * 1.1
             self.surf_inr[self.adj_surf_inr_no] = x0
             self.surf_inr[
-                self.no_surfs] = self.dist_iris - sum(self.surf_inr[:-1])
+                self.no_surfs] = self.iris_pos - sum(self.surf_inr[:-1])
             while True:
                 v_y, v_a, v_p = self.ray_tracing_surf(dist_infinity)
-                y1 = self.rindex_sgd_prj * v_y / v_a - self.dist_focal
+                y1 = self.rindex_sgd_prj * v_y / v_a - self.focal_pos
                 x0, y0, x1, y1 = newton_step(x0, y0, x1, y1)
                 self.surf_inr[self.adj_surf_inr_no] = x0
                 self.surf_inr[
-                    self.no_surfs] = self.dist_iris - sum(self.surf_inr[:-1])
+                    self.no_surfs] = self.iris_pos - sum(self.surf_inr[:-1])
                 if abs(y1) < 0.00001:
                     break
         else:
             v_y, v_a, v_p = self.ray_tracing_surf(dist_infinity)
-            y0 = v_p + self.rindex_sgd_prj * v_y / v_a - self.dist_focal if (
+            y0 = v_p + self.rindex_sgd_prj * v_y / v_a - self.focal_pos if (
                 self.inr_adj == IntervalAdjustment.FOCAL_POSITION
             ) else v_a - self.focal_len_index
             x1 = self.surf_inr[self.adj_surf_inr_no]
@@ -1085,7 +1089,7 @@ class OpticalSystem():
             self.surf_inr[self.adj_surf_inr_no] = x0
             while True:
                 v_y, v_a, v_p = self.ray_tracing_surf(dist_infinity)
-                y1 = v_p + self.rindex_sgd_prj * v_y / v_a - self.dist_focal if (
+                y1 = v_p + self.rindex_sgd_prj * v_y / v_a - self.focal_pos if (
                     self.inr_adj == IntervalAdjustment.FOCAL_POSITION
                 ) else v_a - self.focal_len_index
                 x0, y0, x1, y1 = newton_step(x0, y0, x1, y1)
@@ -1093,11 +1097,11 @@ class OpticalSystem():
                 if abs(y1) < 0.00001:
                     break
             if self.inr_adj == IntervalAdjustment.TELEPHOTO_POWER_0:
-                self.surf_inr.append(self.dist_focal - v_p)
+                self.surf_inr.append(self.focal_pos - v_p)
         if self.adj_surf_inr_no == 1:
             self.determine_base_point_surf()
 
-    def adjust_pos_surf_beta(self, dist_infinity):
+    def adjust_surf_pos_beta(self, dist_infinity):
         """
         屈折面位置を修正して焦点距離を合わせる
         対応するBASICコード：*DCM
@@ -1122,11 +1126,11 @@ class OpticalSystem():
                                                  1] * x0 / x1
             if abs(y1) < 0.00001:
                 break
-        self.surf_inr_fp1 = (self.dist_focal + self.surf_inr[1] - v_p -
+        self.surf_inr_fp1 = (self.focal_pos + self.surf_inr[1] - v_p -
                              self.rindex_sgd_prj * v_y / v_a)
         self.surf_inr[1] = self.surf_inr_fp1
 
-    def adjust_pos_pow(self, dist_infinity):
+    def adjust_pow_pos(self, dist_infinity):
         """
         パワー位置を修正して焦点距離を合わせる
         対応するBASICコード：*INM
@@ -1147,7 +1151,7 @@ class OpticalSystem():
                 if abs(y1) < .00001:
                     break
             if self.inr_adj == IntervalAdjustment.TELEPHOTO_POWER_0:
-                self.pow_inr.append(self.dist_focal - v_p)
+                self.pow_inr.append(self.focal_pos - v_p)
         if (self.input_dtype == InputDataType.SURFACE and
                 self.inr_adj == IntervalAdjustment.NONE):
             self.convert_surf_to_pow()
@@ -1200,7 +1204,7 @@ class OpticalSystem():
         """
         光学系に絞りがあるときにTrueを返す
         """
-        return (self.dist_iris != 0)
+        return (self.iris_pos != 0)
 
 
 class DataConsistenceError(Exception):

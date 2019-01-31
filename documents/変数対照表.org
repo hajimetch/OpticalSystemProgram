@@ -8,9 +8,9 @@
 | CRA    | self.cra               |                                                              |
 | LS()   | self.direction[]       | 光線方向                                                     |
 | LA()   | self.dispersion[]      | ガラスの分散率の逆数                                         |
-| DS     | self.dist_focal        | 第１面から結像面までの距離(焦点位置)                         |
-| DI     | self.dist_iris         | 中間絞り(アパチャ)から結像面までの距離(DI=0の場合を除く)     |
-| LO     | self.dist_obj          | 物体までの距離                                               |
+| DS     | self.focal_pos         | 第１面から結像面までの距離(焦点位置)                         |
+| DI     | self.iris_pos          | 中間絞り(アパチャ)から結像面までの距離(絞りがないときは0)    |
+| LO     | self.obj_dist          | 物体までの距離またはLE1×LN1                                 |
 | FR()   | self.div_ratio[]       | パワーを分割する場合の分割比(第２パワー/第１パワー)          |
 | RF     | self.focal_len_index   | LNM/(指定焦点距離/SF)                                        |
 | LG()   | self.glass[]           | ガラス番号またはガラスデータ                                 |
@@ -37,7 +37,7 @@
 | IC     | self.obj_dist_spec     | 初期条件                                                     |
 | PKV    | self.pkv               |                                                              |
 | LE()   | self.pow_inr[]         | パワーの間隔                                                 |
-| LE1    | self.pow_inr_0         | パワーの間隔の一時変数(LE(1)に相当)                          |
+| LE1    | self.pow_inr_0         | パワーの間隔(LE(1)に相当)                                    |
 | LF()   | self.pow_val[]         | パワーのパワー値                                             |
 | HO     | self.prin_pos_obj      | 物体側主点位置                                               |
 | IEN    | self.program_operation | プログラム制御変数                                           |
@@ -46,17 +46,17 @@
 | NA()   | self.rindex[]          | ガラスの屈折率の絶対値                                       |
 | LL()   | self.rindex_diff[]     | ガラスの屈折率の差分リスト                                   |
 | LN()   | self.rindex_sgd[]      | ガラスの屈折率                                               |
-| LN1    | self.rindex_sgd_0      | ガラスの屈折率の一時変数(LN(1)に相当)                        |
+| LN1    | self.rindex_sgd_0      | ガラスの屈折率(LN(1)に相当)                                  |
 | LNM    | self.rindex_sgd_prj    | 主レンズ像界屈折率またはLN(K+1)                              |
 | SF     | self.scale             | 焦点距離尺度                                                 |
 | D1D()  | self.split_param1[]    | パワーの分割用データ１                                       |
 | D2D()  | self.split_param2[]    | パワーの分割用データ２                                       |
 | RD()   | self.split_pattern[]   | パワーの分割方法                                             |
 | LJ()   | self.surf_eff_rad[]    | 屈折面の有効半径                                             |
-| LJ1    | self.surf_eff_rad_0    | 屈折面の有効半径の一時変数(LJ(1)に相当)                      |
+| LJ1    | self.surf_eff_rad_0    | 屈折面の有効半径(LJ(1)に相当)                                |
 | IDL()  | self.surf_index[]      | レンズ番号                                                   |
 | LD()   | self.surf_inr[]        | 屈折面の間隔                                                 |
-| LD1    | self.surf_inr_0        | 屈折面の間隔の一時変数(LD(1)に相当)                          |
+| LD1    | self.surf_inr_0        | 屈折面の間隔(LD(1)に相当)                                    |
 | LDV    | self.surf_inr_adj0     | LO=∞のときのLD(KV)に相当                                    |
 | LDW    | self.surf_inr_adj1     | LO=∞のときのLD(KV+1)に相当                                  |
 | LDE    | self.surf_inr_delta    | LE1×LN1-LD1に相当                                           |
@@ -66,10 +66,11 @@
 | KSD()  | self.surfs_of_pow[]    | 各パワーを構成する屈折面の数                                 |
 | KN     | self.tel_no_surfs      | 望遠系の屈折面数                                             |
 | ITR    | self.tracing_dir       | 光線追跡方向                                                 |
-| LCT    | self.dist_index        | 物体距離のインデックス(LCT=0の場合を除く)                    |
-| L      | self.dist_obj_real     | 計算対象の物体距離(実長)                                     |
-| LCT=0  | self.single_dist()     | 指定する物体距離が単一の場合(LCT=0のとき)にTrueを返す        |
-| DI<>0  | self.iris_exists()     | 光学系に絞りがある場合(DI<>0のとき)にTrueを返す              |
-| LV()   | self.proj_dist[]       | 物体距離データリスト                                         |
+| LCT    | self.dist_index        | 物体距離のインデックス(LCT<>0の場合)                         |
+| L      | self.obj_dist_real     | 計算対象の物体距離(実長)                                     |
+| DI<>0  | self.iris_exists()     | 光学系に絞りがあるとき(DI<>0)にTrueを返す                    |
+| LV()   | self.obj_dist_lst[]    | 物体距離データリスト                                         |
 | KY     | self.no_grps           | 屈折面グループの数                                           |
+| LNK    | self.rindex_sgd_end    | ガラスの屈折率(LN(K+1)に相当)                                |
+| FL     | self.focal_len         | 焦点距離または固定レンズ前面から焦点面までの距離(IDAX=5)     |
 |        |                        |                                                              |

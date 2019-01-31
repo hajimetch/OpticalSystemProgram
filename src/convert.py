@@ -102,11 +102,11 @@ class ScreenDisplayDimension(NumberedEnum):
 
 
 #
-# Define Exceptions.
+# Define Errors.
 #
 
 
-class ElementBoundsException(Exception):
+class ElementBoundsError(Exception):
     pass
 
 
@@ -118,11 +118,11 @@ class ElementBoundsException(Exception):
 def write_dataline(fout, config, args):
     data = []
     for e in args:
-        data.append(get_data(fout, config, e))
+        data.append(get_data(config, e))
     fout.write(','.join(data) + '\n')
 
 
-def get_data(fout, config, e):
+def get_data(config, e):
     if len(e) == 1:
         return e[0]
     elif len(e) == 2:
@@ -130,7 +130,7 @@ def get_data(fout, config, e):
     elif len(e) == 3:
         return config.get(e[0], e[1], fallback=e[2])
     else:
-        raise ElementBoundsException("Unexpected number of elements")
+        raise ElementBoundsError("Unexpected number of elements")
 
 
 def one_of_valid(config, args):
@@ -146,6 +146,11 @@ def all_of_valid(config, args):
         if (config.get(e[0], e[1], fallback='') != ''):
             ones.append(e)
     return ones
+
+
+def get_len(config, category, item):
+    data = config.get(category, item, fallback='')
+    return 0 if data == '' else len(data.split(','))
 
 
 #
@@ -242,12 +247,10 @@ def main():
         if (interval_adjustment == IntervalAdjustment.TELEPHOTO_POWER_0):
             args.append(['Telephoto', 'system position'])
         if (interval_adjustment == IntervalAdjustment.FOCAL_LENGTH or
-                interval_adjustment ==
-                IntervalAdjustment.FOCAL_POSITION_LENGTH):
-            args.append(['System', 'focal length'])
-        if (interval_adjustment ==
+                interval_adjustment == IntervalAdjustment.FOCAL_POSITION_LENGTH
+                or interval_adjustment ==
                 IntervalAdjustment.FOCAL_POSITION_SEPARATED):
-            args.append(['System', 'fixed lens position'])
+            args.append(['System', 'focal length'])
         if (interval_adjustment == IntervalAdjustment.FOCAL_POSITION_LENGTH):
             args.append(['System', 'iris position'])
         if (interval_adjustment ==
@@ -285,6 +288,12 @@ def main():
             ones.append(['System', 'aperture position'])
             #        ones.append(['System', 'aperture radius real'])
             args.extend(all_of_valid(config, ones))
+        write_dataline(fout, config, args)
+
+        fout.write('*INL:data ')
+        args = []
+        args.append([str(get_len(config, 'System', 'object distance list'))])
+        args.append(['System', 'object distance list'])
         write_dataline(fout, config, args)
 
         fout.write('*INCA:data ')
