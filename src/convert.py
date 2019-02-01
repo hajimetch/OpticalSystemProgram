@@ -286,7 +286,7 @@ def main():
               tracing_direction == TracingDirection.SOURCE_TO_APERTURE_EXT):
             ones = []
             ones.append(['System', 'aperture position'])
-            #        ones.append(['System', 'aperture radius real'])
+            ones.append(['System', 'aperture radius real'])
             args.extend(all_of_valid(config, ones))
         write_dataline(fout, config, args)
 
