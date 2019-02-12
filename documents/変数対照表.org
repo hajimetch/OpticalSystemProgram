@@ -29,8 +29,8 @@
 | KN     | self.tel_no_surfs      | 望遠系の屈折面数                                             |
 | KSD()  | self.surfs_of_pow[]    | 各パワーを構成する屈折面の数                                 |
 | KT     | self.no_pows           | パワーの数                                                   |
-| KV     | self.adj_surf_inr_no   | 中間(後)レンズを移動する場合に調整する屈折面間隔の番号       |
-| KX     | self.adj_pow_inr_no    | 中間(後)レンズを移動する場合に調整するパワー間隔の番号       |
+| KV     | self.adj_surf_inr      | 中間(後)レンズを移動する場合に調整する屈折面間隔の番号       |
+| KX     | self.adj_pow_inr       | 中間(後)レンズを移動する場合に調整するパワー間隔の番号       |
 | KY     | self.no_grps           | 屈折面グループの数                                           |
 | L      | self.obj_dist_real     | 計算対象の物体距離(実長)                                     |
 | LA()   | self.dispersion[]      | ガラスの分散率の逆数                                         |
@@ -72,3 +72,7 @@
 | SD()   | self.lit_hgt_at_grp[]  | 近軸光線の各グループにおける入射高                           |
 | SF     | self.scale             | 焦点距離尺度                                                 |
 | TD()   | self.grp_inr[]         | グループの間隔                                               |
+| IRN    | self.irn               |                                                              |
+| KI     | self.adj_surf_inr_b    | レンズ群に続く可変長の間隔の番号                             |
+| DF     | self.df                |                                                              |
+|        |                        |                                                              |
