@@ -1,5 +1,6 @@
 | BASIC  | Python                 | 備考                                                         |
 |--------+------------------------+--------------------------------------------------------------|
+|        | self.program_function  | 現在動作させているプログラム機能                             |
 | AC(,)  | self.asph_coeff[,]     | 非球面係数                                                   |
 | AP     | self.ap_rad            | アパチャ半径                                                 |
 | C0D(,) | self.inv['even']       | 収差曲線の偶関数の近似多項式の係数を求めるための逆行列       |
@@ -8,14 +9,18 @@
 | CRA    | self.cra               |                                                              |
 | D1D()  | self.split_param1[]    | パワーの分割用データ１                                       |
 | D2D()  | self.split_param2[]    | パワーの分割用データ２                                       |
+| DF     | self.df                |                                                              |
 | DI     | self.iris_pos          | 中間絞り(アパチャ)から結像面までの距離(絞りがないときは0)    |
 | DS     | self.focal_pos         | 第１面から結像面までの距離(焦点位置)                         |
 | EF     | self.input_dtype       | 初期データ入力条件                                           |
 | FL     | self.focal_len         | 焦点距離または固定レンズ前面から焦点面までの距離(IDAX=5)     |
 | FR()   | self.div_ratio[]       | パワーを分割する場合の分割比(第２パワー/第１パワー)          |
 | GD()   | self.grp_val[]         | グループのパワー値                                           |
+| HI     | self.prin_pos_prj      | 像側主点位置                                                 |
+| HIM    | self.tel_prin_pos_prj  | 像側主点位置(主レンズ系の第１面から測る)                     |
 | HM     | self.max_rad           | レンズとアパチャの最大径                                     |
 | HO     | self.prin_pos_obj      | 物体側主点位置                                               |
+| HOM    | self.tel_prin_pos_obj  | 物体側主点位置(主レンズ系の第１面から測る)                   |
 | IC     | self.obj_dist_spc      | 初期条件                                                     |
 | ICN    | self.icn               |                                                              |
 | IDA    | self.inr_adj           | 読み込みデータの調整方法指定                                 |
@@ -23,8 +28,10 @@
 | IDL()  | self.surf_index[]      | レンズ番号                                                   |
 | IEN    | self.program_operation | プログラム制御変数                                           |
 | ILD()  | self.lens_index[]      | レンズの番号                                                 |
+| IRN    | self.irn               |                                                              |
 | ITR    | self.tracing_dir       | 光線追跡方向                                                 |
 | K      | self.no_surfs          | 屈折面の数                                                   |
+| KI     | self.adj_surf_inr_b    | レンズ群に続く可変長の間隔の番号                             |
 | KL     | self.no_lenses         | レンズの数                                                   |
 | KN     | self.tel_no_surfs      | 望遠系の屈折面数                                             |
 | KSD()  | self.surfs_of_pow[]    | 各パワーを構成する屈折面の数                                 |
@@ -40,6 +47,7 @@
 | LD1    | self.surf_inr_0        | 屈折面の間隔(LD(1)に相当)                                    |
 | LD20   | self.surf_inr_fp1      | IDA=2(FOCAL_POSITION)のときのLD(2)                           |
 | LDE    | self.surf_inr_delta    | LE1×LN1-LD1に相当                                           |
+| LDM    | self.tel_system_dist   | 望遠系の第１屈折面から主レンズ系の第１屈折面までの距離       |
 | LDV    | self.surf_inr_adj0     | LO=∞のときのLD(KV)に相当                                    |
 | LDW    | self.surf_inr_adj1     | LO=∞のときのLD(KV+1)に相当                                  |
 | LE()   | self.pow_inr[]         | パワーの間隔                                                 |
@@ -69,10 +77,16 @@
 | PKV    | self.pkv               |                                                              |
 | RD()   | self.split_pattern[]   | パワーの分割方法                                             |
 | RF     | self.focal_len_index   | LNM/(指定焦点距離/SF)                                        |
+| RR()   |                        | rev(LR())                                                    |
 | SD()   | self.lit_hgt_at_grp[]  | 近軸光線の各グループにおける入射高                           |
 | SF     | self.scale             | 焦点距離尺度                                                 |
 | TD()   | self.grp_inr[]         | グループの間隔                                               |
-| IRN    | self.irn               |                                                              |
-| KI     | self.adj_surf_inr_b    | レンズ群に続く可変長の間隔の番号                             |
-| DF     | self.df                |                                                              |
+| BF     | self.back_focus_inf    | バックフォーカス(物体距離無限遠)                             |
+| UO     | self.surf_inr_index    | -1/LD1(IC!=0), 0(IC=0)                                       |
+| WO     | self.prin_pos_index    | -1/(LD1+HO)(IC!=0), 0(IC=0)                                  |
+| FO     | self.imaging_dist      | 物体距離有限の時の結像距離                                   |
+| G      | self.imaging_pos       | 結像面(ガウス像面)位置                                       |
+| BFO    | self.back_focus        | バックフォーカス(物体距離有限)                               |
+| BA     | self.drawing_angle     | 半画角                                                       |
+| GHT    | self.imaging_hgt       | 結像面(ガウス像面)高さ                                       |
 |        |                        |                                                              |
